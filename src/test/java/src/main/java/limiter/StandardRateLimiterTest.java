@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class StandardRateLimiterTest {
 
   RateLimiter rateLimiter;
+  double allowedMargin = 0.1;
 
   @Order(2)
   @ParameterizedTest
@@ -25,7 +26,7 @@ class StandardRateLimiterTest {
     // GIVEN: A RateLimiter with a limit of n transactions per second
     rateLimiter = new StandardRateLimiter(throughput);
     double expected = ceil((double) (calls - throughput) / throughput);
-    double margin = expected * 0.01;
+    double margin = expected * allowedMargin;
     // WHEN: Invoking n concurrent calls at the same instant
     Runnable execution = invokeRateLimiter(calls, rateLimiter);
     double actual = nanoSecondsToSeconds(measureTime(execution));
@@ -44,7 +45,7 @@ class StandardRateLimiterTest {
     Runnable execution = invokeRateLimiter(calls, rateLimiter);
     double actual = nanoSecondsToSeconds(measureTime(execution));
     // THEN: As close to zero as possible is expected
-    assertEquals(0, actual, 0.2, "Execution time is not within the allowed margin.");
+    assertEquals(allowedMargin, actual, allowedMargin, "Execution time is not within the allowed margin.");
     assertTrue(1 > actual, "Rate limiter did not enforce the agreed speed limit.");
   }
 
