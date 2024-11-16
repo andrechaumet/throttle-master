@@ -1,17 +1,24 @@
 package src.main.java.limiter;
 
-import org.example.RateLimiter;
-import org.example.limiter.StandardRateLimiter;
+import static java.lang.Math.ceil;
+import static java.lang.Thread.currentThread;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import com.andre.RateLimiter;
+import com.andre.limiter.StandardRateLimiter;
+
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
+
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
-
-import static java.lang.Math.ceil;
-import static java.lang.Thread.currentThread;
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class StandardRateLimiterTest {
@@ -19,7 +26,7 @@ class StandardRateLimiterTest {
   RateLimiter rateLimiter;
   double allowedMargin = 0.1;
 
-  @Order(2)
+  @Order(3)
   @ParameterizedTest
   @CsvSource({"11, 3", "100, 10", "22, 2", "94, 7", "50, 2", "231, 25"})
   void rateLimiterShouldHandleAverageInTime(int calls, int throughput) {
@@ -28,8 +35,8 @@ class StandardRateLimiterTest {
     double expected = ceil((double) (calls - throughput) / throughput);
     double margin = expected * allowedMargin;
     // WHEN: Invoking n concurrent calls at the same instant
-    Runnable execution = invokeRateLimiter(calls, rateLimiter);
-    double actual = nanoSecondsToSeconds(measureTime(execution));
+    Runnable execution = invokeRateLimiter(calls, rateLimiter, e -> currentThread().interrupt());
+    double actual = NANOSECONDS.toSeconds(measureTime(execution));
     // THEN: Agreed rate limit value should be respected
     assertTrue(expected <= actual, "Rate limiter did not enforce the agreed speed limit.");
     assertEquals(expected, actual, margin, "Execution time is not within the allowed margin.");
@@ -42,31 +49,48 @@ class StandardRateLimiterTest {
     // GIVEN: A RateLimiter with a limit larger than transactions per second
     rateLimiter = new StandardRateLimiter(throughput);
     // WHEN: Invoking n concurrent calls at the same instant
-    Runnable execution = invokeRateLimiter(calls, rateLimiter);
-    double actual = nanoSecondsToSeconds(measureTime(execution));
+    Runnable execution = invokeRateLimiter(calls, rateLimiter, e -> currentThread().interrupt());
+    double actual = NANOSECONDS.toSeconds(measureTime(execution));
     // THEN: As close to zero as possible is expected
-    assertEquals(allowedMargin, actual, allowedMargin, "Execution time is not within the allowed margin.");
     assertTrue(1 > actual, "Rate limiter did not enforce the agreed speed limit.");
+    assertEquals(allowedMargin, actual, allowedMargin, "Execution time is not within the allowed margin.");
   }
 
-  private Runnable invokeRateLimiter(int concurrentCalls, RateLimiter rateLimiter) {
+  @Test
+  @Order(2)
+  void rateLimiterShouldTimeOutWhenExceedingTimeConstraints() {
+    // GIVEN: A RateLimiter with timeout lesser than the throughput
+    rateLimiter = new StandardRateLimiter(2, SECONDS.toNanos(5));
+    AtomicInteger timeouts = new AtomicInteger();
+    Runnable execution = invokeRateLimiter(20, rateLimiter, e -> {
+      currentThread().interrupt();
+      timeouts.incrementAndGet();
+    });
+    // WHEN: Invoking n concurrent calls
+    execution.run();
+    // THEN: Out of time invocations should throw
+    assertEquals(10, timeouts.get());
+  }
+
+  private Runnable invokeRateLimiter(
+      int concurrentCalls, RateLimiter rateLimiter, Consumer<Exception> handler) {
     Thread[] threads = new Thread[concurrentCalls];
     return () -> {
       for (int i = 0; i < concurrentCalls; i++) {
-        threads[i] = acquireSafely(rateLimiter);
+        threads[i] = acquireSafely(rateLimiter, handler);
         threads[i].start();
       }
       joinAll(threads);
     };
   }
 
-  private Thread acquireSafely(RateLimiter rateLimiter) {
+  private Thread acquireSafely(RateLimiter rateLimiter, Consumer<Exception> handler) {
     return new Thread(
         () -> {
           try {
             rateLimiter.acquire();
-          } catch (InterruptedException e) {
-            currentThread().interrupt();
+          } catch (Exception e) {
+            handler.accept(e);
           }
         });
   }
@@ -86,9 +110,5 @@ class StandardRateLimiterTest {
     runnable.run();
     long end = System.nanoTime();
     return end - start;
-  }
-
-  private double nanoSecondsToSeconds(long nanoSeconds) {
-    return nanoSeconds / 1_000_000_000.0;
   }
 }
