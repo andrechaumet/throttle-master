@@ -1,12 +1,12 @@
-package org.example.limiter;
+package com.andre.limiter;
 
-import static java.lang.Long.MAX_VALUE;
 import static java.lang.Math.max;
 import static java.lang.System.nanoTime;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import com.andre.RateLimiter;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.example.RateLimiter;
 
 /**
  * Rate Limiter: This component restricts the number of times a function can be invoked within a
@@ -23,25 +23,22 @@ import org.example.RateLimiter;
 public class StandardRateLimiter implements RateLimiter {
   private final AtomicInteger requestCount;
   private int throughput;
-  private long timeOut;
+  private long timeout;
   private long lapsed;
 
   public StandardRateLimiter(int throughput) {
-    this.throughput = throughput;
-    this.requestCount = new AtomicInteger(0);
-    this.lapsed = nanoTime();
-    this.timeOut = MAX_VALUE;
+    this(throughput, Long.MAX_VALUE);
   }
 
-  public StandardRateLimiter(int throughput, long timeOut) {
+  public StandardRateLimiter(int throughput, long timeout) {
     this.throughput = throughput;
     this.requestCount = new AtomicInteger(0);
     this.lapsed = nanoTime();
-    this.timeOut = timeOut;
+    this.timeout = timeout;
   }
 
   @Override
-  public void acquire() throws InterruptedException {
+  public void acquire() throws InterruptedException, TimeoutException {
     long initialTime = nanoTime();
     while (timedOut(initialTime)) {
       long currentTime = nanoTime();
@@ -52,10 +49,11 @@ public class StandardRateLimiter implements RateLimiter {
         await(currentTime);
       }
     }
+    throw new TimeoutException();
   }
 
   private boolean timedOut(long initialTime) {
-    return initialTime < timeOut;
+    return (nanoTime() - initialTime) < timeout;
   }
 
   private boolean withinLimit() {
@@ -76,12 +74,12 @@ public class StandardRateLimiter implements RateLimiter {
   }
 
   @Override
-  public void increase(int amount) {
+  public void increaseLimit(int amount) {
     throughput += amount;
   }
 
   @Override
-  public void decrease(int amount) {
+  public void decreaseLimit(int amount) {
     throughput -= amount;
   }
 

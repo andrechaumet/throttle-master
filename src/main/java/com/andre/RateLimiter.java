@@ -1,4 +1,6 @@
-package org.example;
+package com.andre;
+
+import java.util.concurrent.TimeoutException;
 
 /**
  * This interface defines a rate limiter mechanism, which controls the rate at which actions are
@@ -13,7 +15,7 @@ public interface RateLimiter {
    *
    * @throws InterruptedException if the thread is interrupted while waiting for permission.
    */
-  void acquire() throws InterruptedException;
+  void acquire() throws InterruptedException, TimeoutException;
 
   /**
    * Increases the rate limit by a specified amount. This allows for a higher number of actions to
@@ -21,7 +23,7 @@ public interface RateLimiter {
    *
    * @param amount the amount by which to increase the rate limit.
    */
-  void increase(int amount);
+  void increaseLimit(int amount);
 
   /**
    * Decreases the rate limit by a specified amount. This limits the number of actions that can be
@@ -29,7 +31,7 @@ public interface RateLimiter {
    *
    * @param amount the amount by which to decrease the rate limit.
    */
-  void decrease(int amount);
+  void decreaseLimit(int amount);
 
   /**
    * Retrieves the current rate limit.
