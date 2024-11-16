@@ -1,12 +1,12 @@
 package org.example.limiter;
 
-import org.example.RateLimiter;
-
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
+import static java.lang.Long.MAX_VALUE;
 import static java.lang.Math.max;
 import static java.lang.System.nanoTime;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
+
+import java.util.concurrent.atomic.AtomicInteger;
+import org.example.RateLimiter;
 
 /**
  * Rate Limiter: This component restricts the number of times a function can be invoked within a
@@ -22,18 +22,28 @@ import static java.lang.System.nanoTime;
  */
 public class StandardRateLimiter implements RateLimiter {
   private final AtomicInteger requestCount;
-  private long startTime;
   private int throughput;
+  private long timeOut;
+  private long lapsed;
 
   public StandardRateLimiter(int throughput) {
     this.throughput = throughput;
     this.requestCount = new AtomicInteger(0);
-    this.startTime = nanoTime();
+    this.lapsed = nanoTime();
+    this.timeOut = MAX_VALUE;
+  }
+
+  public StandardRateLimiter(int throughput, long timeOut) {
+    this.throughput = throughput;
+    this.requestCount = new AtomicInteger(0);
+    this.lapsed = nanoTime();
+    this.timeOut = timeOut;
   }
 
   @Override
   public void acquire() throws InterruptedException {
-    while (true) {
+    long initialTime = nanoTime();
+    while (timedOut(initialTime)) {
       long currentTime = nanoTime();
       resetCounter(currentTime);
       if (withinLimit()) {
@@ -44,20 +54,24 @@ public class StandardRateLimiter implements RateLimiter {
     }
   }
 
+  private boolean timedOut(long initialTime) {
+    return initialTime < timeOut;
+  }
+
   private boolean withinLimit() {
     return requestCount.incrementAndGet() <= throughput;
   }
 
   private void resetCounter(long currentTime) {
-    if (currentTime - startTime >= 1_000_000_000.0) {
+    if (currentTime - lapsed >= 1_000_000_000.0) {
       requestCount.set(0);
-      startTime = currentTime;
+      lapsed = currentTime;
     }
   }
 
   private synchronized void await(long currentTime) throws InterruptedException {
     requestCount.decrementAndGet();
-    long waitTime = 1000 - TimeUnit.NANOSECONDS.toMillis(currentTime - startTime);
+    long waitTime = 1000 - NANOSECONDS.toMillis(currentTime - lapsed);
     wait(max(1, waitTime));
   }
 
