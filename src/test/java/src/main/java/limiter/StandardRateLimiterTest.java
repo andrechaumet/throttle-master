@@ -60,7 +60,7 @@ class StandardRateLimiterTest {
   @ParameterizedTest
   @CsvSource({"2, 5, 20", "1, 5, 6", "1, 10, 30"})
   void rateLimiterShouldTimeOutWhenExceedingTimeConstraints(int throughput, long timeout, int calls) {
-    // GIVEN: A RateLimiter with timeout lesser than the throughput
+    // GIVEN: A RateLimiter with timeout smaller than the throughput
     rateLimiter = new StandardRateLimiter(throughput, SECONDS.toNanos(timeout));
     AtomicInteger timeouts = new AtomicInteger();
     Runnable execution = invokeRateLimiter(calls, rateLimiter,
@@ -70,22 +70,25 @@ class StandardRateLimiterTest {
         });
     // WHEN: Invoking n concurrent calls
     execution.run();
-    // THEN: Out of time invocations should throw
+    // THEN: Expected timed out invocations should throw
     long maxAllowedInvocations = throughput * timeout;
     int expectedTimeouts = (int) max(0, calls - maxAllowedInvocations);
     assertEquals(expectedTimeouts, timeouts.get(), 1, "The number of timeouts does not match the expected value.");
   }
 
-  private Runnable invokeRateLimiter(
-      int calls, RateLimiter rateLimiter, Consumer<Exception> handler) {
+  private Runnable invokeRateLimiter(int calls, RateLimiter limiter, Consumer<Exception> handler) {
     Thread[] threads = new Thread[calls];
     return () -> {
-      for (int i = 0; i < calls; i++) {
-        threads[i] = acquireSafely(rateLimiter, handler);
-      }
+      createAll(threads, limiter, handler);
       startAll(threads);
       joinAll(threads);
     };
+  }
+
+  private void createAll(Thread[] threads, RateLimiter limiter, Consumer<Exception> handler) {
+    for (int i = 0; i < threads.length; i++) {
+      threads[i] = acquireSafely(limiter, handler);
+    }
   }
 
   private Thread acquireSafely(RateLimiter rateLimiter, Consumer<Exception> handler) {
