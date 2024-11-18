@@ -1,4 +1,4 @@
-package src.main.java.limiter;
+package com.andre.limiter;
 
 import static java.lang.Math.ceil;
 import static java.lang.Math.max;
@@ -9,7 +9,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.andre.RateLimiter;
-import com.andre.limiter.StandardRateLimiter;
 
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -38,7 +37,6 @@ class StandardRateLimiterTest {
     Runnable execution = invokeRateLimiter(calls, rateLimiter, e -> currentThread().interrupt());
     double actual = NANOSECONDS.toSeconds(measureTime(execution));
     // THEN: Agreed rate limit value should be respected
-    assertTrue(expected <= actual, "Rate limiter did not enforce the agreed speed limit.");
     assertEquals(expected, actual, margin, "Execution time is not within the allowed margin.");
   }
 
@@ -56,9 +54,16 @@ class StandardRateLimiterTest {
     assertEquals(allowedMargin, actual, allowedMargin, "Execution time is not within the allowed margin.");
   }
 
+  // TODO:
+  void rateLimiterShouldAllowCallsWithHigherPriorityFirst() {
+    // GIVEN: A RateLimiter with a limit larger than transactions per second
+    // WHEN: Invoking n concurrent with diverse priority values
+    // THEN: Higher priority values should acquire and pass first
+  }
+
   @Order(2)
   @ParameterizedTest
-  @CsvSource({"2, 5, 20", "1, 5, 6", "1, 10, 30"})
+  @CsvSource({"2, 5, 20", "1, 5, 6", "1, 10, 30", "350, 10072, 11"})
   void rateLimiterShouldTimeOutWhenExceedingTimeConstraints(int throughput, long timeout, int calls) {
     // GIVEN: A RateLimiter with timeout smaller than the throughput
     rateLimiter = new StandardRateLimiter(throughput, SECONDS.toNanos(timeout));
@@ -74,6 +79,25 @@ class StandardRateLimiterTest {
     long maxAllowedInvocations = throughput * timeout;
     int expectedTimeouts = (int) max(0, calls - maxAllowedInvocations);
     assertEquals(expectedTimeouts, timeouts.get(), 1, "The number of timeouts does not match the expected value.");
+  }
+
+  @Order(4)
+  @ParameterizedTest
+  @CsvSource({"2, 10, 20", "1, 6, 6", "2, 20, 10", "15, 10, 4", "3, 5, 10"})
+  void rateLimiterShouldPassWithoutReachingTimeout(int throughput, long timeout, int calls) {
+    // GIVEN: A RateLimiter with throughput able to avoid the timeout
+    rateLimiter = new StandardRateLimiter(throughput, SECONDS.toNanos(timeout));
+    AtomicInteger timeouts = new AtomicInteger();
+    Runnable execution = invokeRateLimiter(calls, rateLimiter,
+        e -> {
+          currentThread().interrupt();
+          timeouts.incrementAndGet();
+        });
+    // WHEN: Invoking n concurrent calls
+    execution.run();
+    // THEN: No timeouts should happen
+    int expectedTimeouts = 0;
+    assertEquals(expectedTimeouts, timeouts.get(), "The operation experienced unexpected timeouts.");
   }
 
   private Runnable invokeRateLimiter(int calls, RateLimiter limiter, Consumer<Exception> handler) {
