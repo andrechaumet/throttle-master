@@ -4,27 +4,31 @@ import static java.lang.Math.max;
 import static java.lang.System.nanoTime;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
-import com.andre.RateLimiter;
-
-import java.util.List;
-import java.util.Vector;
+import java.util.LinkedList;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * This component restricts the number of times a function can be invoked within a
- * specified time period and taking priorities in count. It aims to prevent system or external
- * service overload and ensures controlled resource usage.
+ * A RateLimiter designed to manage and control the flow of requests with the following features:
  *
- * <p>A rate limiter can be used, for example, to ensure that no more than X requests per second are
- * made to an API.</p>
+ * <ul>
+ *   <li><b>Synchronous Limiting:</b> Restricts up to a specified number of simultaneous requests.</li>
+ *   <li><b>Priority Handling:</b> Allows certain requests to be prioritized for faster processing.</li>
+ *   <li><b>Hierarchical Rate Limiting:</b> Supports multi-level rate control (second, minute, hour).</li>
+ *   <li><b>Token Bucket Mechanism:</b> Utilizes a token-based algorithm for fair and efficient request management.</li>
+ * </ul>
+ *
+ * Suitable for scenarios requiring precise and flexible rate control.
  *
  * @author André Chaumet
  * @date 2024-09-24
- * @version 0.1
+ * @version 0.2
  */
-public class StandardRateLimiter implements RateLimiter {
-  private final List<Integer> priorityVector;
+public class StandardRateLimiter {
+
+  private static final int LOWEST_PRIORITY = 1;
+
+  private final LinkedList<Integer> priorityList;
   private final AtomicInteger requestCount;
   private int throughput;
   private long timeout;
@@ -36,18 +40,17 @@ public class StandardRateLimiter implements RateLimiter {
 
   public StandardRateLimiter(int throughput, long timeout) {
     this.requestCount = new AtomicInteger(0);
-    this.priorityVector = new Vector<>();
+    this.priorityList = new LinkedList<>();
     this.throughput = throughput;
     this.lapsed = nanoTime();
     this.timeout = timeout;
   }
 
-  @Override
-  public void acquire() throws InterruptedException, TimeoutException {
-    acquire(1);
+  public void acquire() throws TimeoutException {
+    acquire(LOWEST_PRIORITY);
   }
 
-  public void acquire(int priority) throws InterruptedException, TimeoutException {
+  public void acquire(int priority) throws TimeoutException {
     long initialTime = nanoTime();
     register(priority);
     while (!timedOut(initialTime)) {
@@ -59,31 +62,33 @@ public class StandardRateLimiter implements RateLimiter {
     throw new TimeoutException();
   }
 
-  private void register(int priority) {
+  private synchronized void register(int priority) {
+    if (priority == LOWEST_PRIORITY) {
+      priorityList.addLast(priority);
+    } else {
+      allocate(priority);
+    }
+  }
+
+  private void allocate(int priority) {
     int i = 0;
-    while (i < priorityVector.size() && priorityVector.get(i) > priority) i++;
-    priorityVector.add(i, priority);
+    while (i < priorityList.size() && priorityList.get(i) > priority) i++;
+    priorityList.add(i, priority);
   }
 
   private boolean timedOut(long initialTime) {
     return (nanoTime() - initialTime) >= timeout;
   }
 
-  private boolean withinLimit(int priority) {
-    int priorityIndex = isPriority(priority);
-    if (priorityIndex != -1 && requestCount.incrementAndGet() <= throughput) {
-      priorityVector.remove(priorityIndex);
-      return true;
+  private synchronized boolean withinLimit(int priority) {
+    int count = requestCount.incrementAndGet();
+    for (int i = 0; i < priorityList.size() && i < throughput; i++) {
+      if (priorityList.get(i) == priority && count <= throughput) {
+        priorityList.remove(i);
+        return true;
+      }
     }
     return false;
-  }
-
-  private int isPriority(int priority) {
-    for (int i = 0; i < priorityVector.size() && i < throughput; i++) {
-      int current = priorityVector.get(i);
-      if (current == priority) return i;
-    }
-    return -1;
   }
 
   private void resetCounter(long currentTime) {
@@ -93,28 +98,28 @@ public class StandardRateLimiter implements RateLimiter {
     }
   }
 
-  private synchronized void await(long currentTime) throws InterruptedException {
+  private synchronized void await(long currentTime) {
     requestCount.decrementAndGet();
     long waitTime = 1000 - NANOSECONDS.toMillis(currentTime - lapsed);
-    wait(max(1, waitTime));
+    try {
+      wait(max(1, waitTime));
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
   }
 
-  @Override
   public void adjustTimeout(long timeout) {
     this.timeout = timeout;
   }
 
-  @Override
   public void adjustLimit(int amount) {
     this.throughput = amount;
   }
 
-  @Override
   public int queueSize() {
     return requestCount.get();
   }
 
-  @Override
   public int currentRate() {
     return throughput;
   }

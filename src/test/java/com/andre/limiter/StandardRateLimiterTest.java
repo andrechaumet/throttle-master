@@ -8,8 +8,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.andre.RateLimiter;
-
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 
@@ -22,7 +20,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class StandardRateLimiterTest {
 
-  RateLimiter rateLimiter;
+  StandardRateLimiter rateLimiter;
   double allowedMargin = 0.1;
 
   @Order(3)
@@ -54,13 +52,6 @@ class StandardRateLimiterTest {
     assertEquals(allowedMargin, actual, allowedMargin, "Execution time is not within the allowed margin.");
   }
 
-  // TODO:
-  void rateLimiterShouldAllowCallsWithHigherPriorityFirst() {
-    // GIVEN: A RateLimiter with a limit larger than transactions per second
-    // WHEN: Invoking n concurrent with diverse priority values
-    // THEN: Higher priority values should acquire and pass first
-  }
-
   @Order(2)
   @ParameterizedTest
   @CsvSource({"2, 5, 20", "1, 5, 6", "1, 10, 30", "350, 10072, 11"})
@@ -76,6 +67,7 @@ class StandardRateLimiterTest {
     // WHEN: Invoking n concurrent calls
     execution.run();
     // THEN: Expected timed out invocations should throw
+    System.out.println(timeouts);
     long maxAllowedInvocations = throughput * timeout;
     int expectedTimeouts = (int) max(0, calls - maxAllowedInvocations);
     assertEquals(expectedTimeouts, timeouts.get(), 1, "The number of timeouts does not match the expected value.");
@@ -100,7 +92,7 @@ class StandardRateLimiterTest {
     assertEquals(expectedTimeouts, timeouts.get(), "The operation experienced unexpected timeouts.");
   }
 
-  private Runnable invokeRateLimiter(int calls, RateLimiter limiter, Consumer<Exception> handler) {
+  private Runnable invokeRateLimiter(int calls, StandardRateLimiter limiter, Consumer<Exception> handler) {
     Thread[] threads = new Thread[calls];
     return () -> {
       createAll(threads, limiter, handler);
@@ -109,13 +101,13 @@ class StandardRateLimiterTest {
     };
   }
 
-  private void createAll(Thread[] threads, RateLimiter limiter, Consumer<Exception> handler) {
+  private void createAll(Thread[] threads, StandardRateLimiter limiter, Consumer<Exception> handler) {
     for (int i = 0; i < threads.length; i++) {
       threads[i] = acquireSafely(limiter, handler);
     }
   }
 
-  private Thread acquireSafely(RateLimiter rateLimiter, Consumer<Exception> handler) {
+  private Thread acquireSafely(StandardRateLimiter rateLimiter, Consumer<Exception> handler) {
     return new Thread(
         () -> {
           try {
