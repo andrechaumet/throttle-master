@@ -18,9 +18,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-class StandardRateLimiterTest {
+class RateLimiterTest {
 
-  StandardRateLimiter rateLimiter;
+  RateLimiter rateLimiter;
   double allowedMargin = 0.1;
 
   @Order(3)
@@ -28,7 +28,7 @@ class StandardRateLimiterTest {
   @CsvSource({"11, 3", "100, 10", "22, 2", "94, 7", "50, 2", "231, 25"})
   void rateLimiterShouldHandleAverageInTime(int calls, int throughput) {
     // GIVEN: A RateLimiter with a limit of n transactions per second
-    rateLimiter = new StandardRateLimiter(throughput);
+    rateLimiter = new RateLimiter(throughput);
     double expected = ceil((double) (calls - throughput) / throughput);
     double margin = expected * allowedMargin;
     // WHEN: Invoking n concurrent calls at the same instant
@@ -43,7 +43,7 @@ class StandardRateLimiterTest {
   @CsvSource({"3, 20", "10, 100", "7, 8", "1111, 11111", "1, 2", "666, 999", "1000, 2000"})
   void rateLimiterShouldHandleMicroExecutionTimeValues(int calls, int throughput) {
     // GIVEN: A RateLimiter with a limit larger than transactions per second
-    rateLimiter = new StandardRateLimiter(throughput);
+    rateLimiter = new RateLimiter(throughput);
     // WHEN: Invoking n concurrent calls at the same instant
     Runnable execution = invokeRateLimiter(calls, rateLimiter, e -> currentThread().interrupt());
     double actual = NANOSECONDS.toSeconds(measureTime(execution));
@@ -57,7 +57,7 @@ class StandardRateLimiterTest {
   @CsvSource({"2, 5, 20", "1, 5, 6", "1, 10, 30", "350, 10072, 11"})
   void rateLimiterShouldTimeOutWhenExceedingTimeConstraints(int throughput, long timeout, int calls) {
     // GIVEN: A RateLimiter with timeout smaller than the throughput
-    rateLimiter = new StandardRateLimiter(throughput, SECONDS.toNanos(timeout));
+    rateLimiter = new RateLimiter(throughput, SECONDS.toNanos(timeout));
     AtomicInteger timeouts = new AtomicInteger();
     Runnable execution = invokeRateLimiter(calls, rateLimiter,
         e -> {
@@ -78,7 +78,7 @@ class StandardRateLimiterTest {
   @CsvSource({"2, 10, 20", "1, 6, 6", "2, 20, 10", "15, 10, 4", "3, 5, 10"})
   void rateLimiterShouldPassWithoutReachingTimeout(int throughput, long timeout, int calls) {
     // GIVEN: A RateLimiter with throughput able to avoid the timeout
-    rateLimiter = new StandardRateLimiter(throughput, SECONDS.toNanos(timeout));
+    rateLimiter = new RateLimiter(throughput, SECONDS.toNanos(timeout));
     AtomicInteger timeouts = new AtomicInteger();
     Runnable execution = invokeRateLimiter(calls, rateLimiter,
         e -> {
@@ -92,7 +92,7 @@ class StandardRateLimiterTest {
     assertEquals(expectedTimeouts, timeouts.get(), "The operation experienced unexpected timeouts.");
   }
 
-  private Runnable invokeRateLimiter(int calls, StandardRateLimiter limiter, Consumer<Exception> handler) {
+  private Runnable invokeRateLimiter(int calls, RateLimiter limiter, Consumer<Exception> handler) {
     Thread[] threads = new Thread[calls];
     return () -> {
       createAll(threads, limiter, handler);
@@ -101,13 +101,13 @@ class StandardRateLimiterTest {
     };
   }
 
-  private void createAll(Thread[] threads, StandardRateLimiter limiter, Consumer<Exception> handler) {
+  private void createAll(Thread[] threads, RateLimiter limiter, Consumer<Exception> handler) {
     for (int i = 0; i < threads.length; i++) {
       threads[i] = acquireSafely(limiter, handler);
     }
   }
 
-  private Thread acquireSafely(StandardRateLimiter rateLimiter, Consumer<Exception> handler) {
+  private Thread acquireSafely(RateLimiter rateLimiter, Consumer<Exception> handler) {
     return new Thread(
         () -> {
           try {
