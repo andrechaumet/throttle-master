@@ -5,12 +5,11 @@ import static java.lang.System.nanoTime;
 import static java.lang.Thread.currentThread;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
-import java.util.ArrayList;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * A RateLimiter designed to manage and control the flow of requests with the following features:
+ * RateLimiter designed to manage and control the flow of requests with the following features:
  *
  * <ul>
  *   <li><b>Synchronous Limiting:</b> Restricts up to a specified number of simultaneous requests.
@@ -25,12 +24,12 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @date 2024-09-24
  * @version 0.2
  */
-public class RateLimiter {
+public final class RateLimiter {
 
   private static final long HIGHEST_TIMEOUT = Long.MAX_VALUE;
-  private static final int LOWEST_PRIORITY = 1;
+  public static final int LOWEST_PRIORITY = 1;
 
-  private final ArrayList<Integer> priorityList;
+  private final PriorityQueue priorityQueue;
   private final AtomicInteger requestCount;
   private int throughput;
   private long timeout;
@@ -41,8 +40,8 @@ public class RateLimiter {
   }
 
   public RateLimiter(int throughput, long timeout) {
+    this.priorityQueue = new PriorityQueue();
     this.requestCount = new AtomicInteger();
-    this.priorityList = new ArrayList<>();
     this.throughput = throughput;
     this.lapsed = nanoTime();
     this.timeout = timeout;
@@ -53,7 +52,7 @@ public class RateLimiter {
   }
 
   public void acquire(int priority) throws TimeoutException {
-    register(priority);
+    priorityQueue.register(priority);
     long initialTime = nanoTime();
     do {
       long currentTime = nanoTime();
@@ -64,27 +63,6 @@ public class RateLimiter {
     throw new TimeoutException();
   }
 
-  private synchronized void register(int priority) {
-    if (priority == LOWEST_PRIORITY) {
-      priorityList.add(priority);
-    } else {
-      allocate(priority);
-    }
-  }
-
-  private void allocate(int priority) {
-    int left = 0, right = priorityList.size() - 1;
-    while (left <= right) {
-      int mean = (left + right) / 2;
-      if (priorityList.get(mean) > priority) {
-        left = mean + 1;
-      } else {
-        right = mean - 1;
-      }
-    }
-    priorityList.add(left, priority);
-  }
-
   private boolean timedOut(long initialTime) {
     return (nanoTime() - initialTime) >= timeout;
   }
@@ -92,25 +70,17 @@ public class RateLimiter {
   private synchronized boolean acquired(Integer priority) {
     if (requestCount.get() > throughput) return false;
 
-    if (priorityList.get(0) == LOWEST_PRIORITY && requestCount.incrementAndGet() <= throughput) {
-      System.out.println(priorityList.get(0));
-      priorityList.remove(priority);
+    if (priorityQueue.first() == LOWEST_PRIORITY && requestCount.incrementAndGet() <= throughput) {
+      System.out.println(priorityQueue.first());
+      priorityQueue.removeFirstOccurrence(priority);
       return true;
     }
 
-
-    int firstSize = throughput - requestCount.get();
-    boolean contains = false;
-    for (int i = 0; i <= firstSize; i++) {
-      if (priorityList.get(i) == priority) {
-        contains = true;
-        break;
-      }
-    }
+    boolean contains = priorityQueue.isAmongFirst(priority, throughput - requestCount.get());
 
     if (contains && requestCount.getAndIncrement() <= throughput) {
-      System.out.println(priorityList.get(0));
-      priorityList.remove(priority);
+      System.out.println(priorityQueue.first());
+      priorityQueue.removeFirstOccurrence(priority);
       return true;
     }
     return false;
@@ -142,6 +112,9 @@ public class RateLimiter {
   }
 
   public int queueSize() {
+    return priorityQueue.size();
+  }
+  public int pending() {
     return requestCount.get();
   }
 
