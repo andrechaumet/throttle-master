@@ -6,7 +6,6 @@ import static java.lang.Thread.currentThread;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -32,7 +31,6 @@ public class RateLimiter {
   private static final int LOWEST_PRIORITY = 1;
 
   private final ArrayList<Integer> priorityList;
-  private final LinkedList<Integer> firstList;
   private final AtomicInteger requestCount;
   private int throughput;
   private long timeout;
@@ -45,7 +43,6 @@ public class RateLimiter {
   public RateLimiter(int throughput, long timeout) {
     this.requestCount = new AtomicInteger();
     this.priorityList = new ArrayList<>();
-    this.firstList = new LinkedList<>();
     this.throughput = throughput;
     this.lapsed = nanoTime();
     this.timeout = timeout;
@@ -93,11 +90,27 @@ public class RateLimiter {
   }
 
   private synchronized boolean acquired(Integer priority) {
-    boolean canPass = (priorityList.get(0) == LOWEST_PRIORITY || firstList.contains(priority));
-    if (canPass && requestCount.incrementAndGet() <= throughput) {
-      System.out.println("size: " + priorityList.size() + " " + priorityList);
+    if (requestCount.get() > throughput) return false;
+
+    if (priorityList.get(0) == LOWEST_PRIORITY && requestCount.incrementAndGet() <= throughput) {
+      System.out.println(priorityList.get(0));
       priorityList.remove(priority);
-      firstList.remove(priority);
+      return true;
+    }
+
+
+    int firstSize = throughput - requestCount.get();
+    boolean contains = false;
+    for (int i = 0; i <= firstSize; i++) {
+      if (priorityList.get(i) == priority) {
+        contains = true;
+        break;
+      }
+    }
+
+    if (contains && requestCount.getAndIncrement() <= throughput) {
+      System.out.println(priorityList.get(0));
+      priorityList.remove(priority);
       return true;
     }
     return false;
@@ -107,10 +120,7 @@ public class RateLimiter {
     if (currentTime - lapsed >= 1_000_000_000.0) {
       requestCount.set(0);
       lapsed = currentTime;
-      firstList.clear();
-      for (int i = 0; i < throughput && i < priorityList.size(); i++) {
-        firstList.add(priorityList.get(i));
-      }
+      System.out.println("--");
     }
   }
 

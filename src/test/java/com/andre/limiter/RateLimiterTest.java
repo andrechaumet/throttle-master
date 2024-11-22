@@ -37,10 +37,25 @@ class RateLimiterTest {
     assertEquals(expected, actual, margin, "Execution time is not within the allowed margin.");
   }
 
-
   @Order(1)
   @ParameterizedTest
-  @CsvSource({"3, 20", "10, 100", "7, 8", "1111, 11111", "1, 2", "666, 999", "1000, 2000"})
+  @CsvSource({
+    "3, 20",
+    "10, 100",
+    "7, 8",
+    "1111, 11111",
+    "1, 2",
+    "666, 999",
+    "1000, 2000",
+    "0, 1",
+    "5, 5",
+    "15, 50",
+    "200, 300",
+    "1, 10",
+    "999, 1000",
+    "50, 500",
+    "33, 333"
+  })
   void rateLimiterShouldHandleMicroExecutionTimeValues(int calls, int throughput) {
     // GIVEN: A RateLimiter with a limit larger than transactions per second
     rateLimiter = new RateLimiter(throughput);
@@ -86,7 +101,7 @@ class RateLimiterTest {
   @ParameterizedTest
   @CsvSource({"2, 10, 18", "1, 6, 5", "2, 20, 8", "15, 10, 4", "3, 5, 10"})
   void rateLimiterShouldPassWithoutReachingTimeout(int throughput, long timeout, int calls) {
-    // GIVEN: A RateLimiter with throughput able to avoid the timeout
+    // GIVEN: An amount of calls able to avoid the timeout
     rateLimiter = new RateLimiter(throughput, SECONDS.toNanos(timeout));
     AtomicInteger timeouts = new AtomicInteger();
     Runnable execution = invokeRateLimiter(calls, rateLimiter,
@@ -101,7 +116,7 @@ class RateLimiterTest {
     assertEquals(expectedTimeouts, timeouts.get(), "The operation experienced unexpected timeouts.");
   }
 
-  // TODO:
+  // TODO: First element of the list should never be first for more than {throughput} modifications
   @Test
   void  rateLimiterShouldAllowCallsWithHigherPriorityFirst() {
     Thread[] threads = new Thread[100];
