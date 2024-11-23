@@ -2,55 +2,44 @@ package com.andre.limiter;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static java.lang.Math.max;
-import static java.lang.Thread.currentThread;
-import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.lang.System.nanoTime;
 
 final class CycleTracker {
 
-  private final AtomicInteger requestCount = new AtomicInteger();
-  private long lapsed;
-  private int limit;
+  private final AtomicInteger requestCount;
+  private final int throughput;
+  long lapsed;
 
-  public CycleTracker(long lapsed, int limit) {
-    this.lapsed = lapsed;
-    this.limit = limit;
+  CycleTracker(int throughput) {
+    this.requestCount = new AtomicInteger();
+    this.throughput = throughput;
+    this.lapsed = nanoTime();
   }
 
   synchronized void reset(long currentTime) {
     if (currentTime - lapsed >= 1_000_000_000.0) {
       requestCount.set(0);
       lapsed = currentTime;
-      System.out.println("--");
     }
   }
 
-  int leftover() {
-    return limit - requestCount.get();
+  boolean withoutPriority() {
+    return requestCount.incrementAndGet() <= throughput;
   }
 
-  boolean lesserAllowed() {
-    return requestCount.incrementAndGet() <= limit;
+  boolean withPriority() {
+    return requestCount.getAndIncrement() <= throughput;
   }
 
-  synchronized void skip(long currentTime) {
-    long nextCycle = 1000 - NANOSECONDS.toMillis(currentTime - lapsed);
-    try {
-      wait(max(1, nextCycle));
-    } catch (InterruptedException e) {
-      currentThread().interrupt();
-    }
+  synchronized int leftover() {
+    return throughput - requestCount.get();
   }
 
   boolean exceeded() {
-    return requestCount.get() > limit;
+    return requestCount.get() > throughput;
   }
 
-  int getRequestCount() {
-    return requestCount.get();
-  }
-
-  public void setLimit(int limit) {
-    this.limit = limit;
+  public long lapsed() {
+    return lapsed;
   }
 }
