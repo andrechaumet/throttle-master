@@ -5,13 +5,13 @@ import java.util.ArrayList;
 import static com.andre.limiter.RateLimiter.LOWEST_PRIORITY;
 
 /**
- * thread-safe PriorityQueue for managing queue operations with multithreaded access.
+ * thread-safe PriorityQueue for managing queue insertions and retrievals with multithreaded access.
  *
  * @author André Chaumet
  * @date 2024-09-24
  * @version 0.2
  */
-public final class PriorityQueue {
+final class PriorityQueue {
 
   private final ArrayList<Integer> queue = new ArrayList<>();
 
@@ -36,13 +36,25 @@ public final class PriorityQueue {
     queue.add(left, priority);
   }
 
-  boolean isAmongFirst(int priority, int first) {
+  synchronized boolean isAmongFirst(int priority, int first) {
     for (int i = 0; i <= first; i++) {
       if (queue.get(i) == priority) {
         return true;
       }
     }
     return false;
+  }
+
+  synchronized void removeFirstOccurrence(Integer element) {
+    queue.remove(element);
+  }
+
+  synchronized void removeLowestPriority() {
+    queue.remove(queue.size() - 1);
+  }
+
+  boolean noPriority() {
+    return queue.get(0) == LOWEST_PRIORITY;
   }
 
   int first() {
@@ -52,9 +64,4 @@ public final class PriorityQueue {
   int size() {
     return queue.size();
   }
-
-  synchronized void removeFirstOccurrence(Integer element) {
-    queue.remove(element);
-  }
-
 }

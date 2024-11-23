@@ -70,9 +70,9 @@ public final class RateLimiter {
   private synchronized boolean acquired(Integer priority) {
     if (requestCount.get() > throughput) return false;
 
-    if (priorityQueue.first() == LOWEST_PRIORITY && requestCount.incrementAndGet() <= throughput) {
+    if (priorityQueue.noPriority() && requestCount.incrementAndGet() <= throughput) {
       System.out.println(priorityQueue.first());
-      priorityQueue.removeFirstOccurrence(priority);
+      priorityQueue.removeLowestPriority();
       return true;
     }
 
