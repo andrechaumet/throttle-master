@@ -67,7 +67,6 @@ public final class RateLimiter {
     }
   }
 
-
   private boolean acquired(Integer priority) {
     if (cycleTracker.exceeded()) {
       return false;
@@ -76,12 +75,12 @@ public final class RateLimiter {
     }
   }
 
-  private synchronized boolean allowed(Integer priority) {
+  private boolean allowed(Integer priority) {
     boolean allowed = false;
-    if (priorityQueue.noPriority() && cycleTracker.withoutPriority()) {
+    if (priorityQueue.noPriority() && cycleTracker.priorityPresent(false)) {
       priorityQueue.removeLowestPriority();
       allowed = true;
-    } else if (priorityQueue.isAmongFirst(priority, cycleTracker.leftover()) && cycleTracker.withPriority()) {
+    } else if (priorityQueue.isAmongFirst(priority, cycleTracker.leftover()) && cycleTracker.priorityPresent(true)) {
       priorityQueue.removeFirstOccurrence(priority);
       allowed = true;
     }

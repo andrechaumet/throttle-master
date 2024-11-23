@@ -8,7 +8,7 @@ final class CycleTracker {
 
   private final AtomicInteger requestCount;
   private final int throughput;
-  long lapsed;
+  private long lapsed;
 
   CycleTracker(int throughput) {
     this.requestCount = new AtomicInteger();
@@ -23,15 +23,15 @@ final class CycleTracker {
     }
   }
 
-  boolean withoutPriority() {
-    return requestCount.incrementAndGet() <= throughput;
+  boolean priorityPresent(boolean isPriority) {
+    if (isPriority) {
+      return requestCount.getAndIncrement() <= throughput;
+    } else {
+      return requestCount.incrementAndGet() <= throughput;
+    }
   }
 
-  boolean withPriority() {
-    return requestCount.getAndIncrement() <= throughput;
-  }
-
-  synchronized int leftover() {
+  int leftover() {
     return throughput - requestCount.get();
   }
 

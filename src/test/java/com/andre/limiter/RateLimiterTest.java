@@ -99,13 +99,23 @@ class RateLimiterTest {
 
   @Order(4)
   @ParameterizedTest
-  @CsvSource({"2, 10, 18", "1, 6, 5", "2, 20, 8", "15, 10, 4", "3, 5, 10"})
+  @CsvSource({
+          "2, 10, 18",
+          "1, 6, 5",
+          "2, 20, 8",
+          "15, 10, 4",
+          "3, 5, 10",
+          "10, 10, 100",    // High throughput with a timeout that allows multiple calls
+          "1, 100, 1",      // Low throughput with a high timeout
+          "100, 1, 50",     // High throughput with a very short timeout
+          "50, 2, 100",     // Medium throughput with short timeout, multiple calls
+          "5, 20, 30"       // Medium throughput and higher timeout with moderate calls
+  })
   void rateLimiterShouldPassWithoutReachingTimeout(int throughput, long timeout, int calls) {
     // GIVEN: An amount of calls able to avoid the timeout
     rateLimiter = new RateLimiter(throughput, SECONDS.toNanos(timeout));
     AtomicInteger timeouts = new AtomicInteger();
-    Runnable execution =
-        invokeRateLimiter(calls, rateLimiter,
+    Runnable execution = invokeRateLimiter(calls, rateLimiter,
             e -> {
               currentThread().interrupt();
               timeouts.incrementAndGet();
@@ -114,8 +124,7 @@ class RateLimiterTest {
     execution.run();
     // THEN: No timeouts should happen
     int expectedTimeouts = 0;
-    assertEquals(
-        expectedTimeouts, timeouts.get(), "The operation experienced unexpected timeouts.");
+    assertEquals(expectedTimeouts, timeouts.get(), "The operation experienced unexpected timeouts.");
   }
 
   private Runnable invokeRateLimiter(int calls, RateLimiter limiter, Consumer<Exception> handler) {
