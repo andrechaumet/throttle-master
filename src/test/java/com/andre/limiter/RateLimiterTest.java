@@ -11,7 +11,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -84,11 +83,12 @@ class RateLimiterTest {
     // GIVEN: A RateLimiter with timeout smaller than the throughput
     rateLimiter = new RateLimiter(throughput, SECONDS.toNanos(timeout));
     AtomicInteger timeouts = new AtomicInteger();
-    Runnable execution = invokeRateLimiter(calls, rateLimiter,
-        e -> {
-          currentThread().interrupt();
-          timeouts.incrementAndGet();
-        });
+    Runnable execution =
+        invokeRateLimiter(calls, rateLimiter,
+            e -> {
+              currentThread().interrupt();
+              timeouts.incrementAndGet();
+            });
     // WHEN: Invoking n concurrent calls
     execution.run();
     // THEN: Expected timed out invocations should throw
@@ -104,41 +104,18 @@ class RateLimiterTest {
     // GIVEN: An amount of calls able to avoid the timeout
     rateLimiter = new RateLimiter(throughput, SECONDS.toNanos(timeout));
     AtomicInteger timeouts = new AtomicInteger();
-    Runnable execution = invokeRateLimiter(calls, rateLimiter,
-        e -> {
-          currentThread().interrupt();
-          timeouts.incrementAndGet();
-        });
+    Runnable execution =
+        invokeRateLimiter(calls, rateLimiter,
+            e -> {
+              currentThread().interrupt();
+              timeouts.incrementAndGet();
+            });
     // WHEN: Invoking n concurrent calls
     execution.run();
     // THEN: No timeouts should happen
     int expectedTimeouts = 0;
-    assertEquals(expectedTimeouts, timeouts.get(), "The operation experienced unexpected timeouts.");
-  }
-
-  // TODO: First element of the list should never be first for more than {throughput} modifications
-  @Test
-  void  rateLimiterShouldAllowCallsWithHigherPriorityFirst() {
-    Thread[] threads = new Thread[100];
-    RateLimiter limiter = new RateLimiter(5);
-    AtomicInteger count = new AtomicInteger();
-    Runnable r =
-            () -> {
-              try {
-                int priorityLevel = count.incrementAndGet();
-                limiter.acquire(priorityLevel);
-              } catch (Exception e) {
-                Thread.currentThread().interrupt();
-              }
-            };
-    // GIVEN: A RateLimiter with a limit larger than transactions per second
-    for (int i = 0; i < threads.length; i++) {
-      threads[i] = new Thread(r);
-    }
-    startAll(threads);
-    joinAll(threads);
-    // WHEN: Invoking n concurrent with diverse priority values
-    // THEN: Higher priority values should acquire and pass first
+    assertEquals(
+        expectedTimeouts, timeouts.get(), "The operation experienced unexpected timeouts.");
   }
 
   private Runnable invokeRateLimiter(int calls, RateLimiter limiter, Consumer<Exception> handler) {

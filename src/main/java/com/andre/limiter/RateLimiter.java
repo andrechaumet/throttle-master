@@ -6,7 +6,6 @@ import static java.lang.Thread.currentThread;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * RateLimiter designed to manage and control the flow of requests with the following features:
@@ -30,20 +29,16 @@ public final class RateLimiter {
   public static final int LOWEST_PRIORITY = 1;
 
   private final PriorityQueue priorityQueue;
-  private final AtomicInteger requestCount;
-  private int throughput;
-  private long timeout;
-  private long lapsed;
+  private final CycleTracker cycleTracker;
+  private final long timeout;
 
   public RateLimiter(int throughput) {
     this(throughput, HIGHEST_TIMEOUT);
   }
 
   public RateLimiter(int throughput, long timeout) {
+    this.cycleTracker = new CycleTracker(throughput);
     this.priorityQueue = new PriorityQueue();
-    this.requestCount = new AtomicInteger();
-    this.throughput = throughput;
-    this.lapsed = nanoTime();
     this.timeout = timeout;
   }
 
@@ -56,46 +51,15 @@ public final class RateLimiter {
     long initialTime = nanoTime();
     do {
       long currentTime = nanoTime();
-      resetCounter(currentTime);
+      cycleTracker.reset(currentTime);
       if (acquired(priority)) return;
       await(currentTime);
     } while (!timedOut(initialTime));
     throw new TimeoutException();
   }
 
-  private boolean timedOut(long initialTime) {
-    return (nanoTime() - initialTime) >= timeout;
-  }
-
-  private synchronized boolean acquired(Integer priority) {
-    if (requestCount.get() > throughput) return false;
-
-    if (priorityQueue.first() == LOWEST_PRIORITY && requestCount.incrementAndGet() <= throughput) {
-      System.out.println(priorityQueue.first());
-      priorityQueue.removeFirstOccurrence(priority);
-      return true;
-    }
-
-    boolean contains = priorityQueue.isAmongFirst(priority, throughput - requestCount.get());
-
-    if (contains && requestCount.getAndIncrement() <= throughput) {
-      System.out.println(priorityQueue.first());
-      priorityQueue.removeFirstOccurrence(priority);
-      return true;
-    }
-    return false;
-  }
-
-  private synchronized void resetCounter(long currentTime) {
-    if (currentTime - lapsed >= 1_000_000_000.0) {
-      requestCount.set(0);
-      lapsed = currentTime;
-      System.out.println("--");
-    }
-  }
-
   private synchronized void await(long currentTime) {
-    long nextCycle = 1000 - NANOSECONDS.toMillis(currentTime - lapsed);
+    long nextCycle = 1000 - NANOSECONDS.toMillis(currentTime - cycleTracker.lapsed());
     try {
       wait(max(1, nextCycle));
     } catch (InterruptedException e) {
@@ -103,22 +67,28 @@ public final class RateLimiter {
     }
   }
 
-  public void adjustTimeout(long timeout) {
-    this.timeout = timeout;
+
+  private boolean acquired(Integer priority) {
+    if (cycleTracker.exceeded()) {
+      return false;
+    } else {
+      return allowed(priority);
+    }
   }
 
-  public void adjustLimit(int amount) {
-    this.throughput = amount;
+  private synchronized boolean allowed(Integer priority) {
+    boolean allowed = false;
+    if (priorityQueue.noPriority() && cycleTracker.withoutPriority()) {
+      priorityQueue.removeLowestPriority();
+      allowed = true;
+    } else if (priorityQueue.isAmongFirst(priority, cycleTracker.leftover()) && cycleTracker.withPriority()) {
+      priorityQueue.removeFirstOccurrence(priority);
+      allowed = true;
+    }
+    return allowed;
   }
 
-  public int queueSize() {
-    return priorityQueue.size();
-  }
-  public int pending() {
-    return requestCount.get();
-  }
-
-  public int currentRate() {
-    return throughput;
+  private boolean timedOut(long initialTime) {
+    return (nanoTime() - initialTime) >= timeout;
   }
 }
