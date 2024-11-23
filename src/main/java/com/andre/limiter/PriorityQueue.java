@@ -9,7 +9,7 @@ import static com.andre.limiter.RateLimiter.LOWEST_PRIORITY;
  *
  * @author André Chaumet
  * @date 2024-09-24
- * @version 0.2
+ * @version 0.3
  */
 final class PriorityQueue {
 
@@ -45,12 +45,12 @@ final class PriorityQueue {
     return false;
   }
 
-  synchronized void removeFirstOccurrence(Integer element) {
-    queue.remove(element);
+  synchronized boolean removeFirstOccurrence(Integer element) {
+    return queue.remove(element);
   }
 
-  synchronized void removeLowestPriority() {
-    queue.remove(queue.size() - 1);
+  synchronized boolean removeLowestPriority() {
+    return queue.remove(queue.size() - 1) != null;
   }
 
   boolean noPriority() {

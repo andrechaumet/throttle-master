@@ -19,15 +19,29 @@ import org.junit.jupiter.params.provider.CsvSource;
 class RateLimiterTest {
 
   RateLimiter rateLimiter;
-  double allowedMargin = 0.2;
+  double allowedMargin = 0.1;
 
   @Order(3)
   @ParameterizedTest
-  @CsvSource({"100, 10", "22, 2", "94, 7", "50, 2", "231, 25", "134, 21", "519, 4"})
+  @CsvSource({
+    "100, 10",
+    "22, 2",
+    "94, 7",
+    "50, 2",
+    "231, 25",
+    "134, 21",
+    "519, 4",
+    "32, 3",
+    "98, 18",
+    "1020, 350",
+    "390, 233",
+    "35, 11",
+    "999, 888"
+  })
   void rateLimiterShouldHandleAverageInTime(int calls, int throughput) {
     // GIVEN: A RateLimiter with a limit of n transactions per second
     rateLimiter = new RateLimiter(throughput);
-    double expected = ceil((double) (calls) / throughput);
+    double expected = ceil((double) (calls - throughput) / throughput);
     double margin = expected * allowedMargin;
     // WHEN: Invoking n concurrent calls at the same instant
     Runnable execution = invokeRateLimiter(calls, rateLimiter, e -> currentThread().interrupt());
@@ -100,16 +114,16 @@ class RateLimiterTest {
   @Order(4)
   @ParameterizedTest
   @CsvSource({
-          "2, 10, 18",
-          "1, 6, 5",
-          "2, 20, 8",
-          "15, 10, 4",
-          "3, 5, 10",
-          "10, 10, 100",    // High throughput with a timeout that allows multiple calls
-          "1, 100, 1",      // Low throughput with a high timeout
-          "100, 1, 50",     // High throughput with a very short timeout
-          "50, 2, 100",     // Medium throughput with short timeout, multiple calls
-          "5, 20, 30"       // Medium throughput and higher timeout with moderate calls
+    "2, 10, 18",
+    "1, 6, 5",
+    "2, 20, 8",
+    "15, 10, 4",
+    "3, 5, 10",
+    "10, 10, 100",
+    "1, 100, 1",
+    "100, 1, 50",
+    "50, 2, 100",
+    "5, 20, 30"
   })
   void rateLimiterShouldPassWithoutReachingTimeout(int throughput, long timeout, int calls) {
     // GIVEN: An amount of calls able to avoid the timeout

@@ -4,6 +4,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static java.lang.System.nanoTime;
 
+/**
+ * monitor and regulate the number of requests within a specific time window
+ *
+ * @author André Chaumet
+ * @date 2024-09-24
+ * @version 0.3
+ */
 final class CycleTracker {
 
   private final AtomicInteger requestCount;
@@ -16,7 +23,7 @@ final class CycleTracker {
     this.lapsed = nanoTime();
   }
 
-  synchronized void reset(long currentTime) {
+  void reset(long currentTime) {
     if (currentTime - lapsed >= 1_000_000_000.0) {
       requestCount.set(0);
       lapsed = currentTime;
