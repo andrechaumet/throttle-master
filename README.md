@@ -9,23 +9,22 @@ Restricts up to a specified number of simultaneous invocations.
 ```java
 public CreateUserResponse createUser(CreateRequest createUser) {
   rateLimiter.acquire(); // will wait here until it can acquire
-  return myService.post(createUser);
+  return userService.post(createUser);
 }
 ```
 ### Priority Handling
 Allows certain requests to be prioritized for faster processing. Can always add a request with higher priority by increasing the int used to track priority 
 ```java
-public CreateUserResponse createUser(CreateRequest createUser, boolean highPriority) {
+public CreateUserResponse createUser(CreateRequest createUser, boolean isHighPriority) {
   if (isHighPriority) {
       // in case of a queue, will process before any request with a lower int
-      // note that 2 is an example, you can use any positive int value
       rateLimiter.acquire(2); 
   } else {
       // this is the same as using 'rateLimiter.acquire(1)'
       // will process only if no higher priority requests are pending
       rateLimiter.acquire(); 
   }
-  return myService.post(createUser);
+  return userService.post(createUser);
 }
 ```
 ### Hierarchical Rate Limiting
@@ -34,7 +33,8 @@ allowing fine-grained control over resource consumption, ensuring adherence to b
 ```java
 @Bean
 public RateLimiter rateLimiter() {
-  // Limits up to 5 requests per second and 60 requests per minute. Timeouts a request after 29 seconds of waiting
+  // Limits up to 5 requests per second and 60 requests per minute. 
+  // Timeouts a request after 29 seconds of waiting
   return RateLimiter.RateLimiterBuilder
           .withRate(5, SECONDS)
           .withRate(60, MINUTES)
@@ -42,6 +42,6 @@ public RateLimiter rateLimiter() {
           .build();
 }
 ```
-In case any of these timeout constraints are exceeded, a TimedOutException from the java.util.concurrent.TimeoutException package will be thrown.
+In case any of these timeout constraints are exceeded, a **TimedOutException** from the **java.util.concurrent.TimeoutException** package will be thrown.
 ### Token Bucket Mechanism
 Utilizes a token-based algorithm for fair and efficient request management.

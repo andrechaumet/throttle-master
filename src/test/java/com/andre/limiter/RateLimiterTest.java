@@ -13,7 +13,7 @@ import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.CsvFileSource;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class RateLimiterTest {
@@ -23,21 +23,7 @@ class RateLimiterTest {
 
   @Order(3)
   @ParameterizedTest
-  @CsvSource({
-    "100, 10",
-    "22, 2",
-    "94, 7",
-    "50, 2",
-    "231, 25",
-    "134, 21",
-    "519, 4",
-    "32, 3",
-    "98, 18",
-    "1020, 350",
-    "390, 233",
-    "35, 11",
-    "999, 888"
-  })
+  @CsvFileSource(resources = "/rateLimiterShouldHandleAverageInTime.csv")
   void rateLimiterShouldHandleAverageInTime(int calls, int throughput) {
     // GIVEN: A RateLimiter with a limit of n transactions per second
     rateLimiter = new RateLimiter(throughput);
@@ -52,23 +38,7 @@ class RateLimiterTest {
 
   @Order(1)
   @ParameterizedTest
-  @CsvSource({
-    "3, 20",
-    "10, 100",
-    "7, 8",
-    "1111, 11111",
-    "1, 2",
-    "666, 999",
-    "1000, 2000",
-    "0, 1",
-    "5, 5",
-    "15, 50",
-    "200, 300",
-    "1, 10",
-    "999, 1000",
-    "50, 500",
-    "33, 333"
-  })
+  @CsvFileSource(resources = "/rateLimiterShouldHandleMicroExecutionTimeValues.csv")
   void rateLimiterShouldHandleMicroExecutionTimeValues(int calls, int throughput) {
     // GIVEN: A RateLimiter with a limit larger than transactions per second
     rateLimiter = new RateLimiter(throughput);
@@ -81,19 +51,8 @@ class RateLimiterTest {
 
   @Order(2)
   @ParameterizedTest
-  @CsvSource({
-    "1, 5, 6",
-    "1, 10, 30",
-    "5, 2, 15",
-    "10, 1, 20",
-    "3, 10, 25",
-    "4, 8, 32",
-    "4, 8, 40",
-    "10, 2, 30",
-    "20, 10, 250"
-  })
-  void rateLimiterShouldTimeOutWhenExceedingTimeConstraints(
-      int throughput, long timeout, int calls) {
+  @CsvFileSource(resources = "/rateLimiterShouldTimeOutWhenExceedingTimeConstraints.csv")
+  void rateLimiterShouldTimeOutWhenExceedingTimeConstraints(int throughput, long timeout, int calls) {
     // GIVEN: A RateLimiter with timeout smaller than the throughput
     rateLimiter = new RateLimiter(throughput, SECONDS.toNanos(timeout));
     AtomicInteger timeouts = new AtomicInteger();
@@ -113,18 +72,7 @@ class RateLimiterTest {
 
   @Order(4)
   @ParameterizedTest
-  @CsvSource({
-    "2, 10, 18",
-    "1, 6, 5",
-    "2, 20, 8",
-    "15, 10, 4",
-    "3, 5, 10",
-    "10, 10, 100",
-    "1, 100, 1",
-    "100, 1, 50",
-    "50, 2, 100",
-    "5, 20, 30"
-  })
+  @CsvFileSource(resources = "/rateLimiterShouldPassWithoutReachingTimeout.csv")
   void rateLimiterShouldPassWithoutReachingTimeout(int throughput, long timeout, int calls) {
     // GIVEN: An amount of calls able to avoid the timeout
     rateLimiter = new RateLimiter(throughput, SECONDS.toNanos(timeout));
