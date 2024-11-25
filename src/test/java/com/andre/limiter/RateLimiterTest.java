@@ -7,6 +7,7 @@ import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.MethodOrderer;
@@ -29,11 +30,15 @@ class RateLimiterTest {
     rateLimiter = new RateLimiter(throughput);
     double expected = ceil((double) (calls - throughput) / throughput);
     double margin = expected * allowedMargin;
+    AtomicInteger timeouts = new AtomicInteger();
     // WHEN: Invoking n concurrent calls at the same instant
-    Runnable execution = invokeRateLimiter(calls, rateLimiter, e -> currentThread().interrupt());
+    Runnable execution = invokeRateLimiter(calls, rateLimiter, e -> {
+      timeouts.incrementAndGet();
+      currentThread().interrupt();
+    });
     double actual = NANOSECONDS.toSeconds(measureTime(execution));
     // THEN: Agreed rate limit value should be respected
-    assertEquals(expected, actual, margin, "Execution time is not within the allowed margin.");
+     assertEquals(expected, actual, margin, "Execution time is not within the allowed margin.");
   }
 
   @Order(1)
@@ -42,13 +47,18 @@ class RateLimiterTest {
   void rateLimiterShouldHandleMicroExecutionTimeValues(int calls, int throughput) {
     // GIVEN: A RateLimiter with a limit larger than transactions per second
     rateLimiter = new RateLimiter(throughput);
+    AtomicInteger timeouts = new AtomicInteger();
     // WHEN: Invoking n concurrent calls at the same instant
-    Runnable execution = invokeRateLimiter(calls, rateLimiter, e -> currentThread().interrupt());
+    Runnable execution = invokeRateLimiter(calls, rateLimiter, e -> {
+      currentThread().interrupt();
+      timeouts.incrementAndGet();
+    });
     double actual = NANOSECONDS.toSeconds(measureTime(execution));
     // THEN: As close to 1 as possible is expected
     assertEquals(0, actual, allowedMargin, "Execution time is not within the allowed margin.");
   }
 
+  // pending to add check so timed out requests are removed from the priority queue
   @Order(2)
   @ParameterizedTest
   @CsvFileSource(resources = "/rateLimiterShouldTimeOutWhenExceedingTimeConstraints.csv")
@@ -109,7 +119,7 @@ class RateLimiterTest {
         () -> {
           try {
             rateLimiter.acquire();
-          } catch (Exception e) {
+          } catch (TimeoutException e) {
             handler.accept(e);
           }
         });
