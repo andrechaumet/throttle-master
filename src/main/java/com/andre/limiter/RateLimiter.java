@@ -11,7 +11,6 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * RateLimiter designed to manage and control the flow of requests with the following features:
- *
  * <ul>
  *   <li><b>Synchronous Limiting:</b> Restricts up to a specified number of simultaneous requests.
  *   <li><b>Priority Handling:</b> Allows certain requests to be prioritized for faster processing.
@@ -20,10 +19,11 @@ import java.util.concurrent.TimeoutException;
  * </ul>
  *
  * Suitable for scenarios requiring precise and flexible rate control.
+ * This class is under development. Use with caution.
  *
  * @author André Chaumet
  * @date 2024-09-24
- * @version 0.3
+ * @version 0.4
  */
 public final class RateLimiter {
 
@@ -89,6 +89,7 @@ public final class RateLimiter {
       if (acquired(priority)) return;
       await(currentTime);
     } while (!timedOut(initialTime, timeout));
+    priorityQueue.removeFirstOccurrence(priority);
     throw new TimeoutException();
   }
 
@@ -111,7 +112,7 @@ public final class RateLimiter {
 
   private boolean allowed(int priority) {
     if (priorityQueue.noPriority() && cycleTracker.priorityPresent(false)) {
-      return priorityQueue.removeLowestPriority();
+      return priorityQueue.removeFirstOccurrence(priority); // pending to redo & optimize
     } else if (priorityQueue.isAmongFirst(priority, cycleTracker.leftover())
         && cycleTracker.priorityPresent(true)) {
       return priorityQueue.removeFirstOccurrence(priority);
@@ -120,13 +121,8 @@ public final class RateLimiter {
     }
   }
 
-  private boolean timedOut(long initialTime, long customTimeout) {
-    long spent = nanoTime() - initialTime;
-    if (customTimeout != -1) {
-      return spent > customTimeout;
-    } else {
-      return spent > timeout;
-    }
+  private boolean timedOut(long initialTime, long timeout) {
+    return (nanoTime() - initialTime) >= timeout;
   }
 
   public static final class RateLimiterBuilder {
