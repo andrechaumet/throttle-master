@@ -1,7 +1,5 @@
 package com.andre.limiter;
 
-import java.util.ArrayList;
-
 import static com.andre.limiter.RateLimiter.LOWEST_PRIORITY;
 
 /**
@@ -9,51 +7,101 @@ import static com.andre.limiter.RateLimiter.LOWEST_PRIORITY;
  *
  * @author André Chaumet
  * @date 2024-09-24
- * @version 0.3
+ * @version 0.4
  */
 final class PriorityQueue {
 
-  private final ArrayList<Integer> queue = new ArrayList<>();
+  private Node highest;
+  private Node lowest;
 
-  void register(int priority) {
-    if (priority == LOWEST_PRIORITY) {
-      queue.add(priority);
-    } else {
-      allocate(priority);
+  synchronized void register(int priority) {
+    if (highest == null) {
+      highest = new Node(priority, 1, null);
+      lowest = highest;
+      return;
     }
-  }
 
-  private synchronized void allocate(int priority) {
-    int left = 0, right = queue.size() - 1;
-    while (left <= right) {
-      int mean = (left + right) / 2;
-      if (queue.get(mean) > priority) {
-        left = mean + 1;
-      } else {
-        right = mean - 1;
+    Node current = highest;
+    Node previous = null;
+
+    while (current != null) {
+      if (current.priority > priority) {
+        previous = current;
+        current = current.next;
+      } else if (current.priority == priority) {
+        current.count++;
+        return;
+      } else { // current.priority < priority
+        Node newNode = new Node(priority, 1, current);
+        if (previous != null) {
+          previous.next = newNode;
+        } else {
+          highest = newNode;
+        }
+        return;
       }
     }
-    queue.add(left, priority);
+
+    Node newNode = new Node(priority, 1, null);
+    if (lowest != null) {
+      lowest.next = newNode;
+    }
+    lowest = newNode;
   }
 
-  synchronized boolean isAmongFirst(int current, int first) {
-    for (int i = 0; i <= first; i++) {
-      if (queue.get(i) == current) {
+  synchronized boolean isAmongFirst(int priority, int first) {
+    Node current = highest;
+    for (int i = 0; i < first; i++) {
+      if (current == null) break;
+      if (current.priority == priority) {
         return true;
+      } else {
+        i += current.count;
+        current = current.next;
       }
     }
     return false;
   }
 
-  synchronized boolean removeFirstOccurrence(Integer element) {
-    return queue.remove(element);
-  }
+  synchronized boolean removeFirstOccurrence(int priority) {
+    Node current = highest;
+    Node previous = null;
 
-  synchronized boolean removeLowestPriority() {
-    return queue.remove(queue.size() - 1) != null;
+    while (current != null) {
+      if (current.priority == priority) {
+        current.count--;
+        if (current.count == 0) {
+          if (previous != null) {
+            previous.next = current.next;
+          } else {
+            highest = current.next;
+          }
+          if (current == lowest) {
+            lowest = previous;
+          }
+        }
+        return true;
+      } else {
+        previous = current;
+        current = current.next;
+      }
+    }
+    return false;
   }
 
   boolean noPriority() {
-    return queue.get(0) == LOWEST_PRIORITY;
+    return highest != null && highest.priority == LOWEST_PRIORITY;
+  }
+
+  private static class Node {
+    int priority;
+    int count;
+    Node next;
+
+    public Node(int priority, int count, Node next) {
+      this.priority = priority;
+      this.count = count;
+      this.next = next;
+    }
   }
 }
