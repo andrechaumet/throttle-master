@@ -11,18 +11,18 @@ import static com.andre.limiter.RateLimiter.LOWEST_PRIORITY;
  */
 final class PriorityQueue {
 
-  private Node highest;
-  private Node lowest;
+  private PriorityNode highest;
+  private PriorityNode lowest;
 
-  synchronized void register(int priority) {
+  synchronized void register(int priority) { // pending
     if (highest == null) {
-      highest = new Node(priority, 1, null);
+      highest = new PriorityNode(priority);
       lowest = highest;
       return;
     }
 
-    Node current = highest;
-    Node previous = null;
+    PriorityNode current = highest;
+    PriorityNode previous = null;
 
     while (current != null) {
       if (current.priority > priority) {
@@ -32,41 +32,37 @@ final class PriorityQueue {
         current.count++;
         return;
       } else { // current.priority < priority
-        Node newNode = new Node(priority, 1, current);
+        PriorityNode newPriorityNode = new PriorityNode(priority, current);
         if (previous != null) {
-          previous.next = newNode;
+          previous.next = newPriorityNode;
         } else {
-          highest = newNode;
+          highest = newPriorityNode;
         }
         return;
       }
     }
 
-    Node newNode = new Node(priority, 1, null);
+    PriorityNode newPriorityNode = new PriorityNode(priority);
     if (lowest != null) {
-      lowest.next = newNode;
+      lowest.next = newPriorityNode;
     }
-    lowest = newNode;
+    lowest = newPriorityNode;
   }
 
   synchronized boolean isAmongFirst(int priority, int first) {
-    Node current = highest;
-    for (int i = 0; i < first; i++) {
-      if (current == null) break;
-      if (current.priority == priority) {
-        return true;
-      } else {
-        i += current.count;
-        current = current.next;
-      }
+    PriorityNode current = highest;
+    int checked = 0;
+    while (current != null && checked < first) {
+      if (current.priority == priority) return true;
+      checked += current.count;
+      current = current.next;
     }
     return false;
   }
 
-  synchronized boolean removeFirstOccurrence(int priority) {
-    Node current = highest;
-    Node previous = null;
-
+  synchronized boolean remove(int priority) { // pending
+    PriorityNode current = highest;
+    PriorityNode previous = null;
     while (current != null) {
       if (current.priority == priority) {
         current.count--;
@@ -91,17 +87,5 @@ final class PriorityQueue {
 
   boolean noPriority() {
     return highest != null && highest.priority == LOWEST_PRIORITY;
-  }
-
-  private static class Node {
-    int priority;
-    int count;
-    Node next;
-
-    public Node(int priority, int count, Node next) {
-      this.priority = priority;
-      this.count = count;
-      this.next = next;
-    }
   }
 }

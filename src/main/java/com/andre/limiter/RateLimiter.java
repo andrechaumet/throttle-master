@@ -84,13 +84,18 @@ public final class RateLimiter {
     priorityQueue.register(priority);
     long initialTime = nanoTime();
     do {
-      long currentTime = nanoTime();
-      cycleTracker.reset(currentTime);
-      if (acquired(priority)) return;
-      await(currentTime);
+      if (tryAcquire(priority)) return;
     } while (!timedOut(initialTime, timeout));
-    priorityQueue.removeFirstOccurrence(priority);
+    priorityQueue.remove(priority);
     throw new TimeoutException();
+  }
+
+  private boolean tryAcquire(int priority) {
+    long currentTime = nanoTime();
+    cycleTracker.reset(currentTime);
+    if (acquired(priority)) return true;
+    await(currentTime);
+    return false;
   }
 
   private synchronized void await(long currentTime) {
@@ -112,13 +117,11 @@ public final class RateLimiter {
 
   private boolean allowed(int priority) {
     if (priorityQueue.noPriority() && cycleTracker.priorityPresent(false)) {
-      return priorityQueue.removeFirstOccurrence(priority); // pending to redo & optimize
-    } else if (priorityQueue.isAmongFirst(priority, cycleTracker.leftover())
-        && cycleTracker.priorityPresent(true)) {
-      return priorityQueue.removeFirstOccurrence(priority);
-    } else {
-      return false;
+      return priorityQueue.remove(priority); // pending to redo & optimize
+    } else if (priorityQueue.isAmongFirst(priority, cycleTracker.leftover()) && cycleTracker.priorityPresent(true)) {
+      return priorityQueue.remove(priority);
     }
+    return false;
   }
 
   private boolean timedOut(long initialTime, long timeout) {
