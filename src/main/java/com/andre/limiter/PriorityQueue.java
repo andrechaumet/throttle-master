@@ -14,13 +14,25 @@ final class PriorityQueue {
   private PriorityNode highest;
   private PriorityNode lowest;
 
-  synchronized void register(int priority) { // pending
-    if (highest == null) {
-      highest = new PriorityNode(priority);
-      lowest = highest;
-      return;
+  synchronized void register(int priority) {
+    if (isEmpty()) {
+      initialize(priority);
+    } else {
+      allocate(priority);
     }
+    adjustLowest(priority);
+  }
 
+  private boolean isEmpty() {
+    return highest == null;
+  }
+
+  private void initialize(int priority) {
+    highest = new PriorityNode(priority);
+    lowest = highest;
+  }
+
+  private void allocate(int priority) {
     PriorityNode current = highest;
     PriorityNode previous = null;
 
@@ -41,7 +53,9 @@ final class PriorityQueue {
         return;
       }
     }
+  }
 
+  private void adjustLowest(int priority) {
     PriorityNode newPriorityNode = new PriorityNode(priority);
     if (lowest != null) {
       lowest.next = newPriorityNode;

@@ -1,8 +1,8 @@
 package com.andre.limiter;
 
 final class PriorityNode {
-  int priority;
   int count;
+  int priority;
   PriorityNode next;
 
   PriorityNode(int priority) {
@@ -10,8 +10,8 @@ final class PriorityNode {
   }
 
   PriorityNode(int priority, PriorityNode next) {
-    this.priority = priority;
-    this.count = 1; // first
+    this.count = 1;
     this.next = next;
+    this.priority = priority;
   }
 }
