@@ -32,7 +32,7 @@ final class PriorityQueue {
     lowest = highest;
   }
 
-  private void allocate(int priority) { // refactor pending
+  private void allocate(int priority) {
     PriorityNode current = highest;
     PriorityNode previous = null;
     while (current != null) {
@@ -49,21 +49,21 @@ final class PriorityQueue {
     }
   }
 
-  void linkNode(int priority, PriorityNode current, PriorityNode previous) {
-    PriorityNode newPriorityNode = new PriorityNode(priority, current);
-    if (previous != null) {
-      previous.next = newPriorityNode;
-    } else {
-      highest = newPriorityNode;
-    }
-  }
-
   private void adjustLowest(int priority) {
     PriorityNode newPriorityNode = new PriorityNode(priority);
     if (lowest != null) {
       lowest.next = newPriorityNode;
     }
     lowest = newPriorityNode;
+  }
+
+  private void linkNode(int priority, PriorityNode current, PriorityNode previous) {
+    PriorityNode newPriorityNode = new PriorityNode(priority, current);
+    if (previous != null) {
+      previous.next = newPriorityNode;
+    } else {
+      highest = newPriorityNode;
+    }
   }
 
   synchronized boolean isAmongFirst(int priority, int first) {
