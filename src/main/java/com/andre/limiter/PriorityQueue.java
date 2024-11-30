@@ -32,10 +32,9 @@ final class PriorityQueue {
     lowest = highest;
   }
 
-  private void allocate(int priority) {
+  private void allocate(int priority) { // refactor pending
     PriorityNode current = highest;
     PriorityNode previous = null;
-
     while (current != null) {
       if (current.priority > priority) {
         previous = current;
@@ -43,15 +42,19 @@ final class PriorityQueue {
       } else if (current.priority == priority) {
         current.count++;
         return;
-      } else { // current.priority < priority
-        PriorityNode newPriorityNode = new PriorityNode(priority, current);
-        if (previous != null) {
-          previous.next = newPriorityNode;
-        } else {
-          highest = newPriorityNode;
-        }
+      } else {
+        linkNode(priority, current, previous);
         return;
       }
+    }
+  }
+
+  void linkNode(int priority, PriorityNode current, PriorityNode previous) {
+    PriorityNode newPriorityNode = new PriorityNode(priority, current);
+    if (previous != null) {
+      previous.next = newPriorityNode;
+    } else {
+      highest = newPriorityNode;
     }
   }
 
@@ -74,32 +77,35 @@ final class PriorityQueue {
     return false;
   }
 
-  synchronized boolean remove(int priority) { // pending
+  synchronized boolean remove(int priority) {
     PriorityNode current = highest;
     PriorityNode previous = null;
     while (current != null) {
       if (current.priority == priority) {
-        current.count--;
-        if (current.count == 0) {
-          if (previous != null) {
-            previous.next = current.next;
-          } else {
-            highest = current.next;
-          }
-          if (current == lowest) {
-            lowest = previous;
-          }
-        }
+        unlinkNode(current, previous);
         return true;
-      } else {
-        previous = current;
-        current = current.next;
       }
+      previous = current;
+      current = current.next;
     }
     return false;
   }
 
-  boolean noPriority() {
+  private void unlinkNode(PriorityNode current, PriorityNode previous) {
+    current.count--;
+    if (current.count == 0) {
+      if (previous != null) {
+        previous.next = current.next;
+      } else {
+        highest = current.next;
+      }
+      if (current == lowest) {
+        lowest = previous;
+      }
+    }
+  }
+
+  synchronized boolean noPriority() {
     return highest != null && highest.priority == LOWEST_PRIORITY;
   }
 }
