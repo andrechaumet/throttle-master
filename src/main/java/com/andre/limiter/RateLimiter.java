@@ -3,6 +3,8 @@ package com.andre.limiter;
 import static java.lang.Math.max;
 import static java.lang.System.nanoTime;
 import static java.lang.Thread.currentThread;
+import static java.util.concurrent.TimeUnit.HOURS;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -129,8 +131,9 @@ public final class RateLimiter {
   }
 
   public static final class RateLimiterBuilder {
-    private final int[] throughput = new int[TimeUnit.values().length];
-    private final long[] timeout = new long[TimeUnit.values().length];
+    private static final TimeUnit[] SUPPORTED_TIME_UNITS = {SECONDS, MINUTES, HOURS};
+    private final int[] throughput = new int[SUPPORTED_TIME_UNITS.length];
+    private long timeout;
 
     private RateLimiterBuilder() {}
 
@@ -167,7 +170,7 @@ public final class RateLimiter {
      */
     public RateLimiterBuilder withTimeout(long timeout, TimeUnit unit) {
       validateParameters(timeout, unit, "Timeout");
-      this.timeout[unit.ordinal()] = unit.toNanos(timeout);
+      this.timeout = unit.toNanos(timeout);
       return this;
     }
 
@@ -183,9 +186,13 @@ public final class RateLimiter {
      * @param timeout identified as seconds without requiring TimeUnit
      */
     public RateLimiterBuilder withTimeout(long timeout) {
-      this.timeout[SECONDS.ordinal()] = SECONDS.toNanos(timeout);
+      this.timeout = SECONDS.toNanos(timeout);
       return this;
     }
+
+    /*public RateLimiter build() {
+      //return new RateLimiter();
+    }*/
 
     private void validateParameters(long value, TimeUnit unit, String parameterName) {
       if (value < 0) {
