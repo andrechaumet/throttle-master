@@ -1,13 +1,16 @@
 package com.andre.limiter;
 
+import static java.lang.Long.MAX_VALUE;
 import static java.lang.Math.max;
 import static java.lang.System.nanoTime;
 import static java.lang.Thread.currentThread;
+import static java.util.Arrays.stream;
 import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -29,18 +32,19 @@ import java.util.concurrent.TimeoutException;
  */
 public final class RateLimiter {
 
-  public static final long HIGHEST_TIMEOUT = Long.MAX_VALUE;
+  static final TimeUnit[] SUPPORTED_TIME_UNITS = {SECONDS, MINUTES, HOURS};
+  public static final long NEVER_TIMEOUT = MAX_VALUE;
   public static final int LOWEST_PRIORITY = 1;
 
   private final PriorityQueue priorityQueue;
   private final CycleTracker cycleTracker;
   private final long timeout;
 
-  public RateLimiter(int throughput) {
-    this(throughput, HIGHEST_TIMEOUT);
+  public RateLimiter(int[] throughput) {
+    this(throughput, NEVER_TIMEOUT);
   }
 
-  public RateLimiter(int throughput, long timeout) {
+  public RateLimiter(int[] throughput, long timeout) {
     this.cycleTracker = new CycleTracker(throughput);
     this.priorityQueue = new PriorityQueue();
     this.timeout = timeout;
@@ -110,17 +114,12 @@ public final class RateLimiter {
   }
 
   private boolean acquired(int priority) {
-    if (cycleTracker.exceeded()) {
-      return false;
-    } else {
       return allowed(priority);
-    }
   }
 
   private boolean allowed(int priority) {
-    if (priorityQueue.noPriority() && cycleTracker.priorityPresent(false)) {
-      return priorityQueue.remove(priority); // pending to redo & optimize
-    } else if (priorityQueue.isAmongFirst(priority, cycleTracker.leftover()) && cycleTracker.priorityPresent(true)) {
+    boolean amongFirst = priorityQueue.isAmongFirst(priority, cycleTracker.leftover());
+    if (amongFirst && cycleTracker.priorityPresent()) {
       return priorityQueue.remove(priority);
     }
     return false;
@@ -131,9 +130,8 @@ public final class RateLimiter {
   }
 
   public static final class RateLimiterBuilder {
-    private static final TimeUnit[] SUPPORTED_TIME_UNITS = {SECONDS, MINUTES, HOURS};
     private final int[] throughput = new int[SUPPORTED_TIME_UNITS.length];
-    private long timeout;
+    private long timeout = NEVER_TIMEOUT;
 
     private RateLimiterBuilder() {}
 
@@ -178,7 +176,7 @@ public final class RateLimiter {
      * @param amount identified as seconds without requiring TimeUnit
      */
     public RateLimiterBuilder withRate(int amount) {
-      this.throughput[SECONDS.ordinal()] = amount;
+      this.throughput[0] = amount;
       return this;
     }
 
@@ -190,9 +188,9 @@ public final class RateLimiter {
       return this;
     }
 
-    /*public RateLimiter build() {
-      //return new RateLimiter();
-    }*/
+    public RateLimiter build() {
+      return new RateLimiter(throughput, timeout);
+    }
 
     private void validateParameters(long value, TimeUnit unit, String parameterName) {
       if (value < 0) {
@@ -200,6 +198,10 @@ public final class RateLimiter {
       }
       if (unit == null) {
         throw new IllegalArgumentException("TimeUnit cannot be null.");
+      }
+      if (stream(SUPPORTED_TIME_UNITS).noneMatch(timeUnit -> timeUnit == unit)) {
+        throw new IllegalArgumentException(
+            "TimeUnit must be one of " + Arrays.toString(SUPPORTED_TIME_UNITS) + ".");
       }
     }
   }
