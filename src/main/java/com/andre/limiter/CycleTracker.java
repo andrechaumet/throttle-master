@@ -1,11 +1,9 @@
 package com.andre.limiter;
 
-import java.util.concurrent.atomic.AtomicInteger;
-
+import static com.andre.limiter.RateLimiter.SUPPORTED_TIME_UNITS;
 import static java.lang.System.nanoTime;
-import static java.util.concurrent.TimeUnit.HOURS;
-import static java.util.concurrent.TimeUnit.MINUTES;
-import static java.util.concurrent.TimeUnit.SECONDS;
+
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * monitor and regulate the number of requests within a specific time window
@@ -30,30 +28,26 @@ final class CycleTracker {
   }
 
   void reset(long currentTime) {
-    if (currentTime - lapsed >= SECONDS.toNanos(1)) {
-      requestCount[0].set(0);
-      lapsed = currentTime;
+    boolean outdated = false;
+    for (int i = 0; i < throughput.length; i++) {
+      if (currentTime - lapsed >= SUPPORTED_TIME_UNITS[i].toNanos(1)) {
+        requestCount[i].set(0);
+        outdated = true;
+      }
     }
-    if (currentTime - lapsed >= MINUTES.toNanos(1)) {
-      requestCount[1].set(0);
-      lapsed = currentTime;
-    }
-    if (currentTime - lapsed >= HOURS.toNanos(1)) {
-      requestCount[2].set(0);
-      lapsed = currentTime;
-    }
+    if (outdated) lapsed = currentTime;
   }
 
   boolean priorityPresent() {
-    return requestCount[0].getAndIncrement() <= throughput[0];
+    boolean present = requestCount[0].get() <= throughput[0];
+    if (present) {
+      requestCount[0].incrementAndGet();
+    }
+    return present;
   }
 
   int leftover() {
     return throughput[0] - requestCount[0].get();
-  }
-
-  boolean exceeded() { // wut??
-    return requestCount[0].get() > throughput[0];
   }
 
   public long lapsed() {
