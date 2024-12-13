@@ -52,7 +52,7 @@ final class CycleTracker {
     return throughput[0] - requestCount[0].get();
   }
 
-  boolean exceeded() {
+  boolean exceeded() { // wut??
     return requestCount[0].get() > throughput[0];
   }
 
