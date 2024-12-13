@@ -33,8 +33,8 @@ import java.util.concurrent.TimeoutException;
 public final class RateLimiter {
 
   static final TimeUnit[] SUPPORTED_TIME_UNITS = {SECONDS, MINUTES, HOURS};
-  public static final long NEVER_TIMEOUT = MAX_VALUE;
-  public static final int LOWEST_PRIORITY = 1;
+  private static final long NEVER_TIMEOUT = MAX_VALUE;
+  private static final int LOWEST_PRIORITY = 1;
 
   private final PriorityQueue priorityQueue;
   private final CycleTracker cycleTracker;
@@ -114,10 +114,6 @@ public final class RateLimiter {
   }
 
   private boolean acquired(int priority) {
-      return allowed(priority);
-  }
-
-  private boolean allowed(int priority) {
     boolean amongFirst = priorityQueue.isAmongFirst(priority, cycleTracker.leftover());
     if (amongFirst && cycleTracker.priorityPresent()) {
       return priorityQueue.remove(priority);
