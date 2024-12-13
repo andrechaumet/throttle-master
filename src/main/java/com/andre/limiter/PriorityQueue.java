@@ -1,7 +1,5 @@
 package com.andre.limiter;
 
-import static com.andre.limiter.RateLimiter.LOWEST_PRIORITY;
-
 /**
  * thread-safe PriorityQueue for managing queue insertions and retrievals with multithreaded access.
  *
@@ -103,9 +101,5 @@ final class PriorityQueue {
         lowest = previous;
       }
     }
-  }
-
-  synchronized boolean noPriority() {
-    return highest != null && highest.priority == LOWEST_PRIORITY;
   }
 }
