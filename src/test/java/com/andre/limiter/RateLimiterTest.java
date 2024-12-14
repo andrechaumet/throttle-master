@@ -4,6 +4,7 @@ import static java.lang.Math.ceil;
 import static java.lang.Math.max;
 import static java.lang.Thread.currentThread;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import java.util.concurrent.TimeoutException;
@@ -26,7 +27,7 @@ class RateLimiterTest {
   @CsvFileSource(resources = "/rateLimiterShouldHandleAverageInTime.csv")
   void rateLimiterShouldHandleAverageInTime(int calls, int throughput) {
     // GIVEN: A RateLimiter with a limit of n transactions per second
-    rateLimiter = RateLimiter.RateLimiterBuilder.aRateLimiter().withRate(throughput).build();
+    rateLimiter = RateLimiter.Builder.aRateLimiter().withRate(throughput).build();
     double expected = ceil((double) (calls - throughput) / throughput);
     double margin = expected * allowedMargin;
     AtomicInteger timeouts = new AtomicInteger();
@@ -45,7 +46,7 @@ class RateLimiterTest {
   @CsvFileSource(resources = "/rateLimiterShouldHandleMicroExecutionTimeValues.csv")
   void rateLimiterShouldHandleMicroExecutionTimeValues(int calls, int throughput) {
     // GIVEN: A RateLimiter with a limit larger than transactions per second
-    rateLimiter = RateLimiter.RateLimiterBuilder.aRateLimiter().withRate(throughput).build();
+    rateLimiter = RateLimiter.Builder.aRateLimiter().withRate(throughput).build();
     AtomicInteger timeouts = new AtomicInteger();
     // WHEN: Invoking n concurrent calls at the same instant
     Runnable execution = invokeRateLimiter(calls, rateLimiter, e -> {
@@ -63,7 +64,7 @@ class RateLimiterTest {
   @CsvFileSource(resources = "/rateLimiterShouldTimeOutWhenExceedingTimeConstraints.csv")
   void rateLimiterShouldTimeOutWhenExceedingTimeConstraints(int throughput, long timeout, int calls) {
     // GIVEN: A RateLimiter with timeout smaller than the throughput
-    rateLimiter = RateLimiter.RateLimiterBuilder.aRateLimiter().withRate(throughput).withTimeout(timeout).build();
+    rateLimiter = RateLimiter.Builder.aRateLimiter().withRate(throughput, SECONDS).withTimeout(timeout, SECONDS).build();
     AtomicInteger timeouts = new AtomicInteger();
     Runnable execution =
         invokeRateLimiter(calls, rateLimiter,
@@ -84,7 +85,7 @@ class RateLimiterTest {
   @CsvFileSource(resources = "/rateLimiterShouldPassWithoutReachingTimeout.csv")
   void rateLimiterShouldPassWithoutReachingTimeout(int throughput, long timeout, int calls) {
     // GIVEN: An amount of calls able to avoid the timeout
-    rateLimiter = RateLimiter.RateLimiterBuilder.aRateLimiter().withRate(throughput).withTimeout(timeout).build();
+    rateLimiter = RateLimiter.Builder.aRateLimiter().withRate(throughput).withTimeout(timeout).build();
     AtomicInteger timeouts = new AtomicInteger();
     Runnable execution = invokeRateLimiter(calls, rateLimiter,
             e -> {

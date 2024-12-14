@@ -27,7 +27,7 @@ final class CycleTracker {
     this.lapsed = nanoTime();
   }
 
-  void reset(long currentTime) {
+  synchronized void reset(long currentTime) {
     boolean outdated = false;
     for (int i = 0; i < throughput.length; i++) {
       if (currentTime - lapsed >= SUPPORTED_TIME_UNITS[i].toNanos(1)) {
@@ -38,12 +38,12 @@ final class CycleTracker {
     if (outdated) lapsed = currentTime;
   }
 
-  boolean priorityPresent() {
-    boolean present = requestCount[0].get() <= throughput[0];
-    if (present) {
+  boolean available() {
+    boolean available = requestCount[0].get() <= throughput[0];
+    if (available) {
       requestCount[0].incrementAndGet();
     }
-    return present;
+    return available;
   }
 
   int leftover() {

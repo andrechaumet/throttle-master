@@ -4,7 +4,6 @@ import static java.lang.Long.MAX_VALUE;
 import static java.lang.Math.max;
 import static java.lang.System.nanoTime;
 import static java.lang.Thread.currentThread;
-import static java.util.Arrays.stream;
 import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
@@ -115,7 +114,7 @@ public final class RateLimiter {
 
   private boolean acquired(int priority) {
     boolean amongFirst = priorityQueue.isAmongFirst(priority, cycleTracker.leftover());
-    if (amongFirst && cycleTracker.priorityPresent()) {
+    if (amongFirst && cycleTracker.available()) {
       return priorityQueue.remove(priority);
     }
     return false;
@@ -125,14 +124,22 @@ public final class RateLimiter {
     return (nanoTime() - initialTime) >= timeout;
   }
 
-  public static final class RateLimiterBuilder {
+  private static int getOrdinal(TimeUnit unit) {
+    for (int i = 0; i < SUPPORTED_TIME_UNITS.length; i++) {
+      if (SUPPORTED_TIME_UNITS[i] == unit) return i;
+    }
+    throw new IllegalArgumentException(
+            "TimeUnit must be one of " + Arrays.toString(SUPPORTED_TIME_UNITS) + ".");
+  }
+
+  public static final class Builder {
     private final int[] throughput = new int[SUPPORTED_TIME_UNITS.length];
     private long timeout = NEVER_TIMEOUT;
 
-    private RateLimiterBuilder() {}
+    private Builder() {}
 
-    public static RateLimiterBuilder aRateLimiter() {
-      return new RateLimiterBuilder();
+    public static Builder aRateLimiter() {
+      return new Builder();
     }
 
     /**
@@ -146,9 +153,9 @@ public final class RateLimiter {
      * @param unit the {@link TimeUnit} representing the granularity of the rate limit
      * @throws IllegalArgumentException if the amount is negative or the time unit is null
      */
-    public RateLimiterBuilder withRate(int rate, TimeUnit unit) {
+    public Builder withRate(int rate, TimeUnit unit) {
       validateParameters(rate, unit, "Rate");
-      this.throughput[unit.ordinal()] = rate;
+      this.throughput[getOrdinal(unit)] = rate;
       return this;
     }
 
@@ -162,7 +169,7 @@ public final class RateLimiter {
      * @param unit the {@link TimeUnit} of the timeout duration
      * @throws IllegalArgumentException if the timeout is negative
      */
-    public RateLimiterBuilder withTimeout(long timeout, TimeUnit unit) {
+    public Builder withTimeout(long timeout, TimeUnit unit) {
       validateParameters(timeout, unit, "Timeout");
       this.timeout = unit.toNanos(timeout);
       return this;
@@ -171,7 +178,7 @@ public final class RateLimiter {
     /**
      * @param amount identified as seconds without requiring TimeUnit
      */
-    public RateLimiterBuilder withRate(int amount) {
+    public Builder withRate(int amount) {
       this.throughput[0] = amount;
       return this;
     }
@@ -179,7 +186,7 @@ public final class RateLimiter {
     /**
      * @param timeout identified as seconds without requiring TimeUnit
      */
-    public RateLimiterBuilder withTimeout(long timeout) {
+    public Builder withTimeout(long timeout) {
       this.timeout = SECONDS.toNanos(timeout);
       return this;
     }
@@ -194,10 +201,6 @@ public final class RateLimiter {
       }
       if (unit == null) {
         throw new IllegalArgumentException("TimeUnit cannot be null.");
-      }
-      if (stream(SUPPORTED_TIME_UNITS).noneMatch(timeUnit -> timeUnit == unit)) {
-        throw new IllegalArgumentException(
-            "TimeUnit must be one of " + Arrays.toString(SUPPORTED_TIME_UNITS) + ".");
       }
     }
   }
