@@ -3,6 +3,7 @@ package com.andre.limiter;
 import static java.lang.Math.ceil;
 import static java.lang.Math.max;
 import static java.lang.Thread.currentThread;
+import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -12,6 +13,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestMethodOrder;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
@@ -96,6 +98,29 @@ class RateLimiterTest {
     execution.run();
     // THEN: No timeouts should happen
     int expectedTimeouts = 0;
+    assertEquals(expectedTimeouts, timeouts.get(), "The operation experienced unexpected timeouts.");
+  }
+
+  @Order(5)
+  @Test
+  void rateLimiterShouldHandleMultiRateValues() { // pending to redo/expand
+    int calls = 50;
+    // GIVEN: A RateLimiter with multiple rates and a timeout
+    rateLimiter = RateLimiter.Builder.aRateLimiter()
+            .withRate(5, SECONDS)
+            .withRate(10, MINUTES)
+            .withTimeout(11, SECONDS)
+            .build();
+    AtomicInteger timeouts = new AtomicInteger();
+    Runnable execution = invokeRateLimiter(calls, rateLimiter,
+            e -> {
+              currentThread().interrupt();
+              timeouts.incrementAndGet();
+            });
+    // WHEN: Invoking n concurrent calls
+    execution.run();
+    // THEN: Timeouts should happen due to higher rate limiter
+    int expectedTimeouts = 40;
     assertEquals(expectedTimeouts, timeouts.get(), "The operation experienced unexpected timeouts.");
   }
 
