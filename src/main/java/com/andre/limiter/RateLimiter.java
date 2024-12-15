@@ -103,6 +103,14 @@ public final class RateLimiter {
     return false;
   }
 
+  private boolean acquired(int priority) {
+    boolean amongFirst = priorityQueue.isAmongFirst(priority, cycleTracker.leftover());
+    if (amongFirst && cycleTracker.available()) {
+      return priorityQueue.remove(priority);
+    }
+    return false;
+  }
+
   private synchronized void await(long currentTime) {
     long nextCycle = 1000 - NANOSECONDS.toMillis(currentTime - cycleTracker.lapsed());
     try {
@@ -112,24 +120,8 @@ public final class RateLimiter {
     }
   }
 
-  private boolean acquired(int priority) {
-    boolean amongFirst = priorityQueue.isAmongFirst(priority, cycleTracker.leftover());
-    if (amongFirst && cycleTracker.available()) {
-      return priorityQueue.remove(priority);
-    }
-    return false;
-  }
-
   private boolean timedOut(long initialTime, long timeout) {
     return (nanoTime() - initialTime) >= timeout;
-  }
-
-  private static int getOrdinal(TimeUnit unit) {
-    for (int i = 0; i < SUPPORTED_TIME_UNITS.length; i++) {
-      if (SUPPORTED_TIME_UNITS[i] == unit) return i;
-    }
-    throw new IllegalArgumentException(
-            "TimeUnit must be one of " + Arrays.toString(SUPPORTED_TIME_UNITS) + ".");
   }
 
   public static final class Builder {
@@ -176,23 +168,29 @@ public final class RateLimiter {
     }
 
     /**
-     * @param amount identified as seconds without requiring TimeUnit
+     * @param rate identified as seconds without requiring TimeUnit
      */
-    public Builder withRate(int amount) {
-      this.throughput[0] = amount;
-      return this;
+    public Builder withRate(int rate) {
+      return withRate(rate, SECONDS);
     }
 
     /**
      * @param timeout identified as seconds without requiring TimeUnit
      */
     public Builder withTimeout(long timeout) {
-      this.timeout = SECONDS.toNanos(timeout);
-      return this;
+      return withTimeout(timeout, SECONDS);
     }
 
     public RateLimiter build() {
       return new RateLimiter(throughput, timeout);
+    }
+
+    private static int getOrdinal(TimeUnit unit) {
+      for (int i = 0; i < SUPPORTED_TIME_UNITS.length; i++) {
+        if (SUPPORTED_TIME_UNITS[i] == unit) return i;
+      }
+      throw new IllegalArgumentException(
+              "TimeUnit must be one of " + Arrays.toString(SUPPORTED_TIME_UNITS) + ".");
     }
 
     private void validateParameters(long value, TimeUnit unit, String parameterName) {
