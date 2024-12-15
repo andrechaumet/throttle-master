@@ -27,7 +27,7 @@ final class CycleTracker {
     this.lapsed = nanoTime();
   }
 
-  synchronized void reset(long currentTime) {
+  synchronized void reset(long currentTime) { // pending to redo
     boolean outdated = false;
     for (int i = 0; i < throughput.length; i++) {
       if (currentTime - lapsed >= SUPPORTED_TIME_UNITS[i].toNanos(1)) {
@@ -38,16 +38,35 @@ final class CycleTracker {
     if (outdated) lapsed = currentTime;
   }
 
-  boolean available() {
-    boolean available = requestCount[0].get() <= throughput[0];
-    if (available) {
-      requestCount[0].incrementAndGet();
+  synchronized boolean available() {
+    if (allAvailable()) {
+      incrementAll();
+      return true;
     }
-    return available;
+    return false;
+  }
+
+  private boolean allAvailable() {
+    for (int i = 0; i < throughput.length; i++) {
+      if (throughput[i] == 0) continue;
+      if (throughput[i] <= requestCount[i].get()) return false;
+    }
+    return true;
+  }
+
+  private void incrementAll() {
+    for (AtomicInteger atomicInteger : requestCount) {
+      atomicInteger.incrementAndGet();
+    }
   }
 
   int leftover() {
-    return throughput[0] - requestCount[0].get();
+    int leftover = 0;
+    for (int i = 0; i < throughput.length; i++) {
+      if (throughput[i] == 0) continue;
+      leftover += throughput[i] - requestCount[i].get();
+    }
+    return leftover;
   }
 
   public long lapsed() {
