@@ -1,5 +1,7 @@
 package com.andre.limiter;
 
+import static java.lang.Thread.currentThread;
+
 /**
  * thread-safe PriorityQueue for managing queue insertions and retrievals with multithreaded access.
  *
@@ -61,6 +63,15 @@ final class PriorityQueue {
       previous.next = newPriorityNode;
     } else {
       highest = newPriorityNode;
+    }
+    sync();
+  }
+
+  private synchronized void sync() {
+    try {
+      wait(5);
+    } catch (InterruptedException e) {
+      currentThread().interrupt();
     }
   }
 
