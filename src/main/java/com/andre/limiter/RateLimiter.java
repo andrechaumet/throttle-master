@@ -39,11 +39,7 @@ public final class RateLimiter {
   private final CycleTracker cycleTracker;
   private final long timeout;
 
-  public RateLimiter(int[] throughput) {
-    this(throughput, NEVER_TIMEOUT);
-  }
-
-  public RateLimiter(int[] throughput, long timeout) {
+  private RateLimiter(int[] throughput, long timeout) {
     this.cycleTracker = new CycleTracker(throughput);
     this.priorityQueue = new PriorityQueue();
     this.timeout = timeout;
@@ -194,8 +190,8 @@ public final class RateLimiter {
     }
 
     private void validateParameters(long value, TimeUnit unit, String parameterName) {
-      if (value < 0) {
-        throw new IllegalArgumentException(parameterName + " cannot be negative.");
+      if (value <= 0) {
+        throw new IllegalArgumentException(parameterName + " cannot be negative nor zero.");
       }
       if (unit == null) {
         throw new IllegalArgumentException("TimeUnit cannot be null.");
