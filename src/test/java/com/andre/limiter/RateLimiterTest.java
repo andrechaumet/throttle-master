@@ -3,11 +3,12 @@ package com.andre.limiter;
 import static java.lang.Math.ceil;
 import static java.lang.Math.max;
 import static java.lang.Thread.currentThread;
-import static java.util.concurrent.TimeUnit.MINUTES;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -102,14 +103,15 @@ class RateLimiterTest {
   }
 
   @Order(5)
-  @Test
-  void rateLimiterShouldHandleMultiRateValues() { // pending to redo/expand
-    int calls = 50;
+  @ParameterizedTest
+  @CsvFileSource(resources = "/rateLimiterShouldHandleMultiRateValues.csv")
+  void rateLimiterShouldHandleMultiRateValues(
+      int rate1, TimeUnit unit1, int rate2, TimeUnit unit2, long timeout, int calls) {
     // GIVEN: A RateLimiter with multiple rates and a timeout
     rateLimiter = RateLimiter.Builder.aRateLimiter()
-            .withRate(5, SECONDS)
-            .withRate(10, MINUTES)
-            .withTimeout(11, SECONDS)
+            .withRate(rate1, unit1)
+            .withRate(rate2, unit2)
+            .withTimeout(timeout, SECONDS)
             .build();
     AtomicInteger timeouts = new AtomicInteger();
     Runnable execution = invokeRateLimiter(calls, rateLimiter,
@@ -119,9 +121,31 @@ class RateLimiterTest {
             });
     // WHEN: Invoking n concurrent calls
     execution.run();
-    // THEN: Timeouts should happen due to higher rate limiter
-    int expectedTimeouts = 40;
-    assertEquals(expectedTimeouts, timeouts.get(), "The operation experienced unexpected timeouts.");
+    // THEN: Timeouts should happen due to lower rate allowed
+    int expectedTimeouts = calls - rate2;
+    assertEquals(
+        expectedTimeouts, timeouts.get(), "The operation experienced unexpected timeouts.");
+  }
+
+  @Order(1)
+  @Test
+  void rateLimiterBuilderShouldThrowDueIllegalTimeout() {
+    // GIVEN: A RateLimiter builder
+    RateLimiter.Builder builder = RateLimiter.Builder.aRateLimiter();
+    // WHEN: Calling builder methods with illegal arguments
+    // THEN: Builder should throw accordingly
+    assertThrows(IllegalArgumentException.class,
+            () -> builder.withRate(-5, SECONDS),
+            "Expected exception for negative rate value");
+    assertThrows(IllegalArgumentException.class,
+            () -> builder.withRate(10, null),
+            "Expected exception for null time unit");
+    assertThrows(IllegalArgumentException.class,
+            () -> builder.withRate(15, NANOSECONDS),
+            "Expected exception for unsupported time unit");
+    assertThrows(IllegalArgumentException.class,
+            () -> builder.withTimeout(-1),
+            "Expected exception for negative timeout value");
   }
 
   private Runnable invokeRateLimiter(int calls, RateLimiter limiter, Consumer<Exception> handler) {
