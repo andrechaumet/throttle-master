@@ -55,8 +55,8 @@ final class CycleTracker {
   }
 
   private void incrementAll() {
-    for (AtomicInteger atomicInteger : requestCount) {
-      atomicInteger.incrementAndGet();
+    for (AtomicInteger counter : requestCount) {
+      counter.incrementAndGet();
     }
   }
 
