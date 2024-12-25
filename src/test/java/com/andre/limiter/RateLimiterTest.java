@@ -105,7 +105,7 @@ class RateLimiterTest {
   @Order(5)
   @ParameterizedTest
   @CsvFileSource(resources = "/rateLimiterShouldHandleMultiRateValues.csv")
-  void rateLimiterShouldHandleMultiRateValues(
+  void  rateLimiterShouldHandleMultiRateValues(
       int rate1, TimeUnit unit1, int rate2, TimeUnit unit2, long timeout, int calls) {
     // GIVEN: A RateLimiter with multiple rates and a timeout
     rateLimiter = RateLimiter.Builder.aRateLimiter()
@@ -157,9 +157,23 @@ class RateLimiterTest {
     };
   }
 
+  private Runnable invokeRateLimiter(int calls, Acquirer acquirer, Consumer<Exception> handler) {
+    Thread[] threads = new Thread[calls];
+    return () -> {
+      createAll(threads, acquirer, handler);
+      startAll(threads);
+      joinAll(threads);
+    };
+  }
+
   private void createAll(Thread[] threads, RateLimiter limiter, Consumer<Exception> handler) {
     for (int i = 0; i < threads.length; i++) {
       threads[i] = acquireSafely(limiter, handler);
+    }
+  }
+  private void createAll(Thread[] threads, Acquirer runnable, Consumer<Exception> handler) {
+    for (int i = 0; i < threads.length; i++) {
+      threads[i] = acquireSafely(runnable, handler);
     }
   }
 
@@ -168,6 +182,17 @@ class RateLimiterTest {
         () -> {
           try {
             rateLimiter.acquire();
+          } catch (TimeoutException e) {
+            handler.accept(e);
+          }
+        });
+  }
+
+  private Thread acquireSafely(Acquirer runnable, Consumer<Exception> handler) {
+    return new Thread(
+        () -> {
+          try {
+            runnable.run();
           } catch (TimeoutException e) {
             handler.accept(e);
           }
