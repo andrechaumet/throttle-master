@@ -22,6 +22,32 @@ final class PriorityQueue {
     adjustLowest(priority);
   }
 
+  synchronized boolean remove(int priority) {
+    PriorityNode current = highest;
+    PriorityNode previous = null;
+    while (current != null) {
+      if (current.priority == priority) {
+        unlinkNode(current, previous);
+        return true;
+      }
+      previous = current;
+      current = current.next;
+    }
+    return false;
+  }
+
+  synchronized boolean isAmongFirst(int priority, int first) {
+    PriorityNode current = highest;
+    int checked = 0;
+    while (current != null && checked < first) {
+      if (current.priority == priority) return true;
+      checked += current.count;
+      current = current.next;
+    }
+    return false;
+  }
+
+
   private boolean isEmpty() {
     return highest == null;
   }
@@ -63,31 +89,6 @@ final class PriorityQueue {
     } else {
       highest = newPriorityNode;
     }
-  }
-
-  synchronized boolean isAmongFirst(int priority, int first) {
-    PriorityNode current = highest;
-    int checked = 0;
-    while (current != null && checked < first) {
-      if (current.priority == priority) return true;
-      checked += current.count;
-      current = current.next;
-    }
-    return false;
-  }
-
-  synchronized boolean remove(int priority) {
-    PriorityNode current = highest;
-    PriorityNode previous = null;
-    while (current != null) {
-      if (current.priority == priority) {
-        unlinkNode(current, previous);
-        return true;
-      }
-      previous = current;
-      current = current.next;
-    }
-    return false;
   }
 
   private void unlinkNode(PriorityNode current, PriorityNode previous) {

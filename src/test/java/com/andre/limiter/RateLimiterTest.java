@@ -65,7 +65,6 @@ class RateLimiterTest {
     assertEquals(0, actual, allowedMargin, "Execution time is not within the allowed margin.");
   }
 
-  // pending to add check so timed out requests are removed from the priority queue
   @Order(2)
   @ParameterizedTest
   @CsvFileSource(resources = "/rateLimiterShouldTimeOutWhenExceedingTimeConstraints.csv")
