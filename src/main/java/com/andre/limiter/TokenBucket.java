@@ -2,7 +2,7 @@ package com.andre.limiter;
 
 import java.util.concurrent.TimeoutException;
 
-public interface TokenBucket extends MultirRateLimiter {
+public interface TokenBucket extends MultiRateLimiter {
 
   void acquire() throws TimeoutException;
 

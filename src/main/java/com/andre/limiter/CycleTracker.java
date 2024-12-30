@@ -1,6 +1,6 @@
 package com.andre.limiter;
 
-import static com.andre.limiter.RateLimiter.SUPPORTED_TIME_UNITS;
+import static com.andre.limiter.ThrottleMaster.SUPPORTED_TIME_UNITS;
 import static java.lang.System.nanoTime;
 
 import java.util.concurrent.atomic.AtomicInteger;

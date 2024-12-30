@@ -20,9 +20,9 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
 
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
-class RateLimiterTest {
+class ThrottleMasterTest {
 
-  RateLimiter rateLimiter;
+  ThrottleMaster throttleMaster;
   double allowedMargin = 0.1;
 
   @Order(3)
@@ -30,13 +30,13 @@ class RateLimiterTest {
   @CsvFileSource(resources = "/rateLimiterShouldHandleAverageInTime.csv")
   void rateLimiterShouldHandleAverageInTime(int calls, int throughput) {
     // GIVEN: A RateLimiter with a limit of n transactions per second
-    rateLimiter = RateLimiter.Builder.aRateLimiter().withRate(throughput).build();
+    throttleMaster = ThrottleMaster.Builder.aRateLimiter().withRate(throughput).build();
     double expected = ceil((double) (calls - throughput) / throughput);
     double margin = expected * allowedMargin;
     AtomicInteger timeouts = new AtomicInteger();
     // WHEN: Invoking n concurrent calls at the same instant
     Runnable execution = invokeRateLimiter(calls,
-            () -> rateLimiter.acquire(),
+            () -> throttleMaster.acquire(),
             e -> {
       timeouts.incrementAndGet();
       currentThread().interrupt();
@@ -51,11 +51,11 @@ class RateLimiterTest {
   @CsvFileSource(resources = "/rateLimiterShouldHandleMicroExecutionTimeValues.csv")
   void rateLimiterShouldHandleMicroExecutionTimeValues(int calls, int throughput) {
     // GIVEN: A RateLimiter with a limit larger than transactions per second
-    rateLimiter = RateLimiter.Builder.aRateLimiter().withRate(throughput).build();
+    throttleMaster = ThrottleMaster.Builder.aRateLimiter().withRate(throughput).build();
     AtomicInteger timeouts = new AtomicInteger();
     // WHEN: Invoking n concurrent calls at the same instant
     Runnable execution = invokeRateLimiter(calls,
-            () -> rateLimiter.acquire(),
+            () -> throttleMaster.acquire(),
             e -> {
               currentThread().interrupt();
               timeouts.incrementAndGet();
@@ -70,11 +70,11 @@ class RateLimiterTest {
   @CsvFileSource(resources = "/rateLimiterShouldTimeOutWhenExceedingTimeConstraints.csv")
   void rateLimiterShouldTimeOutWhenExceedingTimeConstraints(int throughput, long timeout, int calls) {
     // GIVEN: A RateLimiter with timeout smaller than the throughput
-    rateLimiter = RateLimiter.Builder.aRateLimiter().withRate(throughput, SECONDS).withTimeout(timeout, SECONDS).build();
+    throttleMaster = ThrottleMaster.Builder.aRateLimiter().withRate(throughput, SECONDS).withTimeout(timeout, SECONDS).build();
     AtomicInteger timeouts = new AtomicInteger();
     Runnable execution =
             invokeRateLimiter(calls,
-                    () -> rateLimiter.acquire(),
+                    () -> throttleMaster.acquire(),
                     e -> {
                       currentThread().interrupt();
                       timeouts.incrementAndGet();
@@ -92,10 +92,10 @@ class RateLimiterTest {
   @CsvFileSource(resources = "/rateLimiterShouldPassWithoutReachingTimeout.csv")
   void rateLimiterShouldPassWithoutReachingTimeout(int throughput, long timeout, int calls) {
     // GIVEN: An amount of calls able to avoid the timeout
-    rateLimiter = RateLimiter.Builder.aRateLimiter().withRate(throughput).withTimeout(timeout).build();
+    throttleMaster = ThrottleMaster.Builder.aRateLimiter().withRate(throughput).withTimeout(timeout).build();
     AtomicInteger timeouts = new AtomicInteger();
     Runnable execution = invokeRateLimiter(calls,
-            () -> rateLimiter.acquire(),
+            () -> throttleMaster.acquire(),
             e -> {
               currentThread().interrupt();
               timeouts.incrementAndGet();
@@ -113,14 +113,14 @@ class RateLimiterTest {
   void  rateLimiterShouldHandleMultiRateValues(
       int rate1, TimeUnit unit1, int rate2, TimeUnit unit2, long timeout, int calls) {
     // GIVEN: A RateLimiter with multiple rates and a timeout
-    rateLimiter = RateLimiter.Builder.aRateLimiter()
+    throttleMaster = ThrottleMaster.Builder.aRateLimiter()
             .withRate(rate1, unit1)
             .withRate(rate2, unit2)
             .withTimeout(timeout, SECONDS)
             .build();
     AtomicInteger timeouts = new AtomicInteger();
     Runnable execution = invokeRateLimiter(calls,
-            () -> rateLimiter.acquire(),
+            () -> throttleMaster.acquire(),
             e -> {
               currentThread().interrupt();
               timeouts.incrementAndGet();
@@ -137,7 +137,7 @@ class RateLimiterTest {
   @Test
   void rateLimiterBuilderShouldThrowDueIllegalTimeout() {
     // GIVEN: A RateLimiter builder
-    RateLimiter.Builder builder = RateLimiter.Builder.aRateLimiter();
+    ThrottleMaster.Builder builder = ThrottleMaster.Builder.aRateLimiter();
     // WHEN: Calling builder methods with illegal arguments
     // THEN: Builder should throw accordingly
     assertThrows(IllegalArgumentException.class,
