@@ -12,6 +12,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * RateLimiter designed to manage and control the flow of requests with the following features:
@@ -37,12 +38,14 @@ public final class RateLimiter {
 
   private final PriorityQueue priorityQueue;
   private final CycleTracker cycleTracker;
+  private final AtomicInteger tokens;
   private final long timeout;
 
-  private RateLimiter(int[] throughput, long timeout) {
+  private RateLimiter(int[] throughput, long timeout, AtomicInteger tokens) {
     this.cycleTracker = new CycleTracker(throughput);
     this.priorityQueue = new PriorityQueue();
     this.timeout = timeout;
+    this.tokens = tokens;
   }
 
   /**
@@ -91,6 +94,14 @@ public final class RateLimiter {
     throw new TimeoutException();
   }
 
+  public void supply() {
+    tokens.getAndAdd(1);
+  }
+
+  public void supply(int amount) {
+    tokens.getAndAdd(amount);
+  }
+
   private boolean tryAcquire(int priority) {
     long currentTime = nanoTime();
     cycleTracker.reset(currentTime);
@@ -100,11 +111,16 @@ public final class RateLimiter {
   }
 
   private boolean acquired(int priority) {
+    if (!tokensAvailable()) return false;
     boolean amongFirst = priorityQueue.isAmongFirst(priority, cycleTracker.leftover());
     if (amongFirst && cycleTracker.available()) {
       return priorityQueue.remove(priority);
     }
     return false;
+  }
+
+  private boolean tokensAvailable() {
+    return tokens != null && tokens.get() < 1;
   }
 
   private synchronized void await(long currentTime) {
@@ -123,6 +139,7 @@ public final class RateLimiter {
   public static final class Builder {
     private final int[] throughput = new int[SUPPORTED_TIME_UNITS.length];
     private long timeout = NEVER_TIMEOUT;
+    private AtomicInteger tokens;
 
     private Builder() {}
 
@@ -177,8 +194,18 @@ public final class RateLimiter {
       return withTimeout(timeout, SECONDS);
     }
 
+    public Builder withTokens() {
+      this.tokens = new AtomicInteger();
+      return this;
+    }
+
+    public Builder withTokens(int amount) {
+      this.tokens = new AtomicInteger(amount);
+      return this;
+    }
+
     public RateLimiter build() {
-      return new RateLimiter(throughput, timeout);
+      return new RateLimiter(throughput, timeout, tokens);
     }
 
     private static int getOrdinal(TimeUnit unit) {
