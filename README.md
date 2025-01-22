@@ -42,6 +42,17 @@ Supports multi-level rate control (e.g., second, minute, hour).
 allowing fine-grained control over resource consumption, ensuring adherence to both short-term and
 long-term usage quotas.
 
+#### withRate(rate, timeUnit):
+
+- `rate` (int): The rate at which resources are acquired (e.g., permits per second).
+- `timeout` (TimeUnit): The unit of time for the rate (e.g., seconds, minutes).
+
+#### withTimeout(timeout, timeUnit):
+
+- `priority` (int): The maximum time to wait for the resource.
+- `timeout` (TimeUnit): The unit of time for the timeout (e.g., seconds, milliseconds).
+
+
 ```java
 
 @Bean
