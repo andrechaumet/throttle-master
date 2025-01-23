@@ -46,6 +46,19 @@ final class CycleTracker {
     return false;
   }
 
+  int leftover() {
+    int leftover = 0;
+    for (int i = 0; i < throughput.length; i++) {
+      if (throughput[i] == 0) continue;
+      leftover += throughput[i] - requestCount[i].get();
+    }
+    return leftover;
+  }
+
+  long lapsed() {
+    return lapsed;
+  }
+
   private boolean allAvailable() {
     for (int i = 0; i < throughput.length; i++) {
       if (throughput[i] == 0) continue;
@@ -58,18 +71,5 @@ final class CycleTracker {
     for (AtomicInteger counter : requestCount) {
       counter.incrementAndGet();
     }
-  }
-
-  int leftover() {
-    int leftover = 0;
-    for (int i = 0; i < throughput.length; i++) {
-      if (throughput[i] == 0) continue;
-      leftover += throughput[i] - requestCount[i].get();
-    }
-    return leftover;
-  }
-
-  public long lapsed() {
-    return lapsed;
   }
 }
