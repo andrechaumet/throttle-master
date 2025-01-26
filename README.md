@@ -1,5 +1,8 @@
 # Throttle Master
 
+> [!WARNING]
+> **This project is in its early stages of development, and is not yet ready for production. Not all features are implemented yet. But, plenty of them are.**
+
 RateLimiter designed to manage and control the flow of requests with the following features
 
 ### Synchronous Limiting
