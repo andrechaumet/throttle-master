@@ -204,6 +204,7 @@ class RateLimiterTest {
     return end - start;
   }
 
+  @FunctionalInterface
   private interface Acquirer {
     void acquire() throws TimeoutException;
   }
