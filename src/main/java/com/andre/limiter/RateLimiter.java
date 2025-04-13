@@ -82,13 +82,16 @@ public final class RateLimiter {
    * @throws TimeoutException if the acquisition fails due to timeout.
    */
   public void acquire(int priority, long timeout) throws TimeoutException {
-    priorityQueue.register(priority);
-    long initialTime = nanoTime();
-    do {
-      if (tryAcquire(priority)) return;
-    } while (!timedOut(initialTime, timeout));
-    priorityQueue.remove(priority);
-    throw new TimeoutException();
+    try {
+      priorityQueue.register(priority);
+      long initialTime = nanoTime();
+      do {
+        if (tryAcquire(priority)) return;
+      } while (!timedOut(initialTime, timeout));
+      throw new TimeoutException();
+    } finally {
+      priorityQueue.remove(priority);
+    }
   }
 
   private boolean tryAcquire(int priority) {
