@@ -48,12 +48,12 @@ long-term usage quotas.
 #### withRate(rate, timeUnit):
 
 - `rate` (int): The rate at which resources are acquired (e.g., permits per second).
-- `timeout` (TimeUnit): The unit of time for the rate (e.g., seconds, minutes).
+- `timeUnit` (TimeUnit): The unit of time for the rate (e.g., seconds, minutes).
 
 #### withTimeout(timeout, timeUnit):
 
-- `priority` (int): The maximum time to wait for the resource.
-- `timeout` (TimeUnit): The unit of time for the timeout (e.g., seconds, milliseconds).
+- `timeout` (int): The maximum time to wait for the resource.
+- `timeUnit` (TimeUnit): The unit of time for the timeout (e.g., seconds, milliseconds).
 
 
 ```java
