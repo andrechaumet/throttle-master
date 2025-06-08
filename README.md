@@ -98,12 +98,12 @@ Automatic cleanup of inactive locks, works with any type that implements `Lockab
 ```java
 MemoryLock<Order> orderLock = new MemoryLock<>();
 
-Order order = new Order(123); // must implement Lockable interface
+Order order = new Order(123); // Order.class must implement Lockable interface
 
-// only one order with same given id can be executed at once
-// while N other orders with different id can be executed at the same time
-orderLock.locked(order, () ->{
-  processOrder(order); // executing in mutual exclusion
+// ensures that only one order with the same ID is executed at a time,
+// while allowing multiple orders with different IDs to be processed concurrently
+orderLock.locked(order, () -> {
+  processOrder(order); // executed with mutual exclusion for this order ID
 });
 ```
 
