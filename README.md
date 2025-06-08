@@ -60,8 +60,8 @@ long-term usage quotas.
 
 @Bean
 public RateLimiter rateLimiter() {
-  // Limits up to 5 requests per second and 60 requests per minute. 
-  // Timeouts a request after 29 seconds of waiting
+  // limits up to 5 requests per second and 60 requests per minute. 
+  // timeouts a request after 29 seconds of waiting
   return RateLimiter.RateLimiterBuilder
       .withRate(5, SECONDS)
       .withRate(60, MINUTES)
@@ -79,15 +79,33 @@ public RateLimiter rateLimiter() {
 
 ```java
 try {
-  rateLimiter.acquire(5, 10000); // Priority level 5, waits for up to 10 seconds
-  // Perform operations after successful acquisition
+  rateLimiter.acquire(5, 10000); // priority level 5, waits for up to 10 seconds
+  // perform operations after successful acquisition
 } catch (TimeoutException e) {
-  // Handles timeout if acquisition fails due to race conditions (e.g., RateLimiter bottlenecked by higher-priority threads)
+  // handles timeout if acquisition fails due to race conditions (e.g., RateLimiter bottlenecked by higher-priority threads)
 }
 ```
 
 In case any of these timeout constraints are exceeded, a **TimedOutException** from the *
 *java.util.concurrent.TimeoutException** package will be thrown.
+
+### MemoryLock
+
+MemoryLock is a lightweight utility for applying in-memory mutual exclusion over key-identified
+resources such as users, orders, accounts, and more.
+Automatic cleanup of inactive locks, works with any type that implements `Lockable`
+
+```java
+MemoryLock<Order> orderLock = new MemoryLock<>();
+
+Order order = new Order(123); // must implement Lockable interface
+
+// only one order with same given id can be executed at once
+// while N other orders with different id can be executed at the same time
+orderLock.locked(order, () ->{
+  processOrder(order); // executing in mutual exclusion
+});
+```
 
 ### Token Bucket Mechanism
 
