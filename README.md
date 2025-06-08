@@ -91,8 +91,7 @@ In case any of these timeout constraints are exceeded, a **TimedOutException** f
 
 ### MemoryLock
 
-MemoryLock is a lightweight utility for applying in-memory mutual exclusion over key-identified
-resources such as users, orders, accounts, and more.
+MemoryLock is a lightweight utility for applying in-memory mutual exclusion over key-identified resources.
 Automatic cleanup of inactive locks, works with any type that implements `Lockable`
 
 ```java
