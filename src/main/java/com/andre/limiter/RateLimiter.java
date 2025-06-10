@@ -1,17 +1,15 @@
 package com.andre.limiter;
 
 import static java.lang.Long.MAX_VALUE;
-import static java.lang.Math.max;
 import static java.lang.System.nanoTime;
-import static java.lang.Thread.currentThread;
 import static java.util.concurrent.TimeUnit.HOURS;
 import static java.util.concurrent.TimeUnit.MINUTES;
-import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.locks.LockSupport;
 
 /**
  * RateLimiter designed to manage and control the flow of requests with the following features:
@@ -86,7 +84,9 @@ public final class RateLimiter {
       priorityQueue.register(priority);
       long initialTime = nanoTime();
       do {
-        if (tryAcquire(priority)) return;
+        if (tryAcquire(priority)) {
+          return;
+        }
       } while (!timedOut(initialTime, timeout));
       throw new TimeoutException();
     } finally {
@@ -95,28 +95,16 @@ public final class RateLimiter {
   }
 
   private boolean tryAcquire(int priority) {
-    long currentTime = nanoTime();
-    cycleTracker.reset(currentTime);
-    if (acquired(priority)) return true;
-    await(currentTime);
+    cycleTracker.reset(nanoTime());
+    if (acquired(priority)) {
+      return true;
+    }
+    LockSupport.parkNanos(SECONDS.toNanos(1));
     return false;
   }
 
   private boolean acquired(int priority) {
-    boolean amongFirst = priorityQueue.isAmongFirst(priority, cycleTracker.leftover());
-    if (amongFirst && cycleTracker.available()) {
-      return priorityQueue.remove(priority);
-    }
-    return false;
-  }
-
-  private synchronized void await(long currentTime) {
-    long nextCycle = 1000 - NANOSECONDS.toMillis(currentTime - cycleTracker.lapsed());
-    try {
-      wait(max(1, nextCycle));
-    } catch (InterruptedException e) {
-      currentThread().interrupt();
-    }
+    return priorityQueue.isAmongFirst(priority, cycleTracker.leftover()) && cycleTracker.available();
   }
 
   private boolean timedOut(long initialTime, long timeout) {
@@ -124,10 +112,12 @@ public final class RateLimiter {
   }
 
   public static final class Builder {
+
     private final int[] throughput = new int[SUPPORTED_TIME_UNITS.length];
     private long timeout = NEVER_TIMEOUT;
 
-    private Builder() {}
+    private Builder() {
+    }
 
     public static Builder aRateLimiter() {
       return new Builder();
@@ -157,7 +147,7 @@ public final class RateLimiter {
      * available before giving up. The duration is specified in the given {@link TimeUnit}.
      *
      * @param timeout the timeout duration to wait for a permit
-     * @param unit the {@link TimeUnit} of the timeout duration
+     * @param unit    the {@link TimeUnit} of the timeout duration
      * @throws IllegalArgumentException if the timeout is negative
      */
     public Builder withTimeout(long timeout, TimeUnit unit) {
@@ -186,10 +176,12 @@ public final class RateLimiter {
 
     private static int getOrdinal(TimeUnit unit) {
       for (int i = 0; i < SUPPORTED_TIME_UNITS.length; i++) {
-        if (SUPPORTED_TIME_UNITS[i] == unit) return i;
+        if (SUPPORTED_TIME_UNITS[i] == unit) {
+          return i;
+        }
       }
       throw new IllegalArgumentException(
-              "TimeUnit must be one of " + Arrays.toString(SUPPORTED_TIME_UNITS) + ".");
+          "TimeUnit must be one of " + Arrays.toString(SUPPORTED_TIME_UNITS) + ".");
     }
 
     private void validateParameters(long value, TimeUnit unit, String parameterName) {

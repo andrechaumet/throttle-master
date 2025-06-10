@@ -27,7 +27,7 @@ final class CycleTracker {
     this.lapsed = nanoTime();
   }
 
-  synchronized void reset(long currentTime) { // pending to redo
+  void reset(long currentTime) { // pending to redo
     boolean outdated = false;
     for (int i = 0; i < throughput.length; i++) {
       if (currentTime - lapsed >= SUPPORTED_TIME_UNITS[i].toNanos(1)) {
@@ -38,7 +38,7 @@ final class CycleTracker {
     if (outdated) lapsed = currentTime;
   }
 
-  synchronized boolean available() {
+  boolean available() {
     if (allAvailable()) {
       incrementAll();
       return true;
