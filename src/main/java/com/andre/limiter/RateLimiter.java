@@ -25,7 +25,7 @@ import java.util.concurrent.locks.LockSupport;
  *
  * @author André Chaumet
  * @date 2024-09-24
- * @version 0.4
+ * @version 0.5
  */
 public final class RateLimiter {
 
