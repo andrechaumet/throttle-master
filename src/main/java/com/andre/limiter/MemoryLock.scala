@@ -9,6 +9,8 @@ import java.util.concurrent.locks.ReentrantLock
  * Implementations provide a unique key that identifies the resource to be locked.
  * This key is used to ensure mutual exclusion when accessing or modifying resources
  * of the same type.
+ *
+ * @version 0.2
  */
 trait Lockable {
 
@@ -55,12 +57,20 @@ final class MemoryLock[T <: Lockable](initialCapacity: Int = 64) {
    * @param runnable the code to execute while holding the lock
    */
   def locked(lockable: T, runnable: Runnable): Unit = {
-    val key = lockable.getKey
-    if (tryAcquireLock(key)) try runnable.run() finally releaseLock(key)
+    locked(lockable, runnable, false)
   }
 
-  private def tryAcquireLock(key: AnyRef) = {
-    val lock = locks.computeIfAbsent(key, _ => new ReentrantLock())
+  /**
+   * Executes the given {@code Runnable} while holding the lock associated with the provided
+   * {@code lockable} key, using the specified fairness policy.
+   */
+  def locked(lockable: T, runnable: Runnable, fair: Boolean): Unit = {
+    val key = lockable.getKey
+    if (tryAcquireLock(key, fair)) try runnable.run() finally releaseLock(key)
+  }
+
+  private def tryAcquireLock(key: AnyRef, fair: Boolean) = {
+    val lock = locks.computeIfAbsent(key, _ => new ReentrantLock(fair))
     lock.tryLock()
   }
 
@@ -71,5 +81,4 @@ final class MemoryLock[T <: Lockable](initialCapacity: Int = 64) {
       if (!lock.isLocked && !lock.hasQueuedThreads) locks.remove(key, lock)
     }
   }
-
 }
