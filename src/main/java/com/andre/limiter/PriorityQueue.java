@@ -13,7 +13,7 @@ final class PriorityQueue {
   private PriorityNode highest;
   private PriorityNode lowest;
 
-  synchronized void register(int priority) {
+  void register(int priority) {
     if (isEmpty()) {
       initialize(priority);
     } else {
@@ -22,7 +22,7 @@ final class PriorityQueue {
     adjustLowest(priority);
   }
 
-  synchronized boolean remove(int priority) {
+  boolean remove(int priority) {
     PriorityNode current = highest;
     PriorityNode previous = null;
     while (current != null) {
@@ -36,7 +36,7 @@ final class PriorityQueue {
     return false;
   }
 
-  synchronized boolean isAmongFirst(int priority, int first) {
+  boolean isAmongFirst(int priority, int first) {
     PriorityNode current = highest;
     int checked = 0;
     while (current != null && checked < first) {
