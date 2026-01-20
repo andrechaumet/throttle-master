@@ -1,6 +1,7 @@
 package com.andre.lock;
 
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -14,38 +15,34 @@ import java.util.concurrent.locks.ReentrantLock;
 public final class MemoryLock<T extends Lockable> {
 
   private final ConcurrentHashMap<Object, ReentrantLock> locks;
-  private final int maxCapacity;
+  private final Semaphore capacity;
+  private final boolean waitOnOverload;
+  private final boolean fair;
+
 
   public MemoryLock() {
     this(64);
   }
 
   public MemoryLock(int minCapacity) {
-    this.locks = new ConcurrentHashMap<>(minCapacity);
-    this.maxCapacity = Integer.MAX_VALUE;
+    this(minCapacity, Integer.MAX_VALUE, true, true);
   }
 
-  public MemoryLock(int minCapacity, int maxCapacity) {
+  public MemoryLock(int minCapacity, int maxCapacity, boolean waitOnOverload, boolean fair) {
     this.locks = new ConcurrentHashMap<>(minCapacity);
-    this.maxCapacity = maxCapacity;
-  }
-
-  /**
-   * Executes the given {@code Runnable} while holding the lock associated with the provided {@code lockable} key.
-   */
-  public void locked(T lockable, Runnable runnable) {
-    locked(lockable, runnable, false);
+    this.capacity = new Semaphore(maxCapacity, fair);
+    this.waitOnOverload = waitOnOverload;
+    this.fair = fair;
   }
 
   /**
    * Executes the given {@code Runnable} while holding the lock associated with the provided {@code lockable} key, using
    * the specified fairness policy.
    *
-   * @param fair Determines whether
    */
-  public void locked(T lockable, Runnable runnable, boolean fair) {
+  public void locked(T lockable, Runnable runnable) throws InterruptedException {
     var key = lockable.getKey();
-    if (tryAcquireLock(key, fair)) {
+    if (tryAcquireLock(key)) {
       try {
         runnable.run();
       } finally {
@@ -54,17 +51,22 @@ public final class MemoryLock<T extends Lockable> {
     }
   }
 
-  private boolean tryAcquireLock(Object key, boolean fair) {
+  private boolean tryAcquireLock(Object key) throws InterruptedException {
+    if (waitOnOverload) capacity.acquire();
+    else if (!capacity.tryAcquire()) return false;
     ReentrantLock lock = locks.computeIfAbsent(
         key, k -> new ReentrantLock(fair)
     );
-    return lock.tryLock();
+    boolean acquired = lock.tryLock();
+    if (!acquired) capacity.release();
+    return acquired;
   }
 
   private void releaseLock(Object key) {
     ReentrantLock lock = locks.get(key);
     if (lock != null) {
       lock.unlock();
+      capacity.release();
       if (!lock.isLocked() && !lock.hasQueuedThreads()) {
         locks.remove(key, lock);
       }
