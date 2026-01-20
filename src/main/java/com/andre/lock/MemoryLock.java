@@ -10,7 +10,10 @@ import java.util.concurrent.locks.ReentrantLock;
  * Provides locking and unlocking for resources that implement {@code Lockable}, ensuring mutual exclusion when
  * performing operations on shared entities.
  *
+ * @author André Chaumet
+ *
  * @param <T> the type of lockable resource
+ *
  */
 public final class MemoryLock<T extends Lockable> {
 
