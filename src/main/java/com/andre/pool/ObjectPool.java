@@ -1,9 +1,9 @@
-package com.andre.limiter;
+package com.andre.pool;
 
 import static java.lang.Integer.MAX_VALUE;
 
-import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.Supplier;
 
 public class ObjectPool<T> {
@@ -14,13 +14,13 @@ public class ObjectPool<T> {
 
   public ObjectPool(Supplier<T> instantiator, int sizeLimit) {
     this.instantiator = instantiator;
-    this.pool = new ArrayDeque<>();
+    this.pool = new ConcurrentLinkedDeque<>();
     this.sizeLimit = sizeLimit;
   }
 
   public ObjectPool(Supplier<T> instantiator) {
     this.instantiator = instantiator;
-    this.pool = new ArrayDeque<>();
+    this.pool = new ConcurrentLinkedDeque<>();
     this.sizeLimit = MAX_VALUE;
   }
 
