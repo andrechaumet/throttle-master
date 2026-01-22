@@ -1,5 +1,6 @@
 package com.andre.lock;
 
+import com.andre.pool.ObjectPool;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.locks.ReentrantLock;
@@ -17,15 +18,15 @@ y * @param <T> the type of lockable resource
 public final class MemoryLock<T extends Lockable> {
 
   private final ConcurrentHashMap<Object, ReentrantLock> locks;
-  private final Semaphore capacity;
+  private final ObjectPool<ReentrantLock> locksPool;
   private final boolean waitOnOverload;
-  private final boolean fair;
+  private final Semaphore capacity;
 
   private MemoryLock(int minCapacity, int maxCapacity, boolean waitOnOverload, boolean fair) {
+    this.locksPool = new ObjectPool<>(() -> new ReentrantLock(fair), maxCapacity);
     this.locks = new ConcurrentHashMap<>(minCapacity);
     this.capacity = new Semaphore(maxCapacity, fair);
     this.waitOnOverload = waitOnOverload;
-    this.fair = fair;
   }
 
   /**
@@ -45,18 +46,13 @@ public final class MemoryLock<T extends Lockable> {
   }
 
   private boolean tryAcquireLock(Object key) throws InterruptedException {
-    if (waitOnOverload) {
-      capacity.acquire();
-    } else if (!capacity.tryAcquire()) {
-      return false;
-    }
+    if (waitOnOverload) capacity.acquire();
+    else if (!capacity.tryAcquire()) return false;
     ReentrantLock lock = locks.computeIfAbsent(
-        key, k -> new ReentrantLock(fair)
+        key, k -> locksPool.request()
     );
     boolean acquired = lock.tryLock();
-    if (!acquired) {
-      capacity.release();
-    }
+    if (!acquired) capacity.release();
     return acquired;
   }
 
@@ -65,9 +61,13 @@ public final class MemoryLock<T extends Lockable> {
     if (lock != null) {
       lock.unlock();
       capacity.release();
-      if (!lock.isLocked() && !lock.hasQueuedThreads()) {
-        locks.remove(key, lock);
-      }
+      recycleLock(lock);
+    }
+  }
+
+  private void recycleLock(ReentrantLock lock) {
+    if (!lock.isLocked() && !lock.hasQueuedThreads()) {
+      locksPool.release(locks.remove(lock));
     }
   }
 

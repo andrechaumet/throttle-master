@@ -6,6 +6,7 @@ import java.util.Deque;
 import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.function.Supplier;
 
+// wip
 public class ObjectPool<T> {
 
   private final Supplier<T> instantiator;
@@ -13,14 +14,14 @@ public class ObjectPool<T> {
   private final int sizeLimit;
 
   public ObjectPool(Supplier<T> instantiator, int sizeLimit) {
-    this.instantiator = instantiator;
     this.pool = new ConcurrentLinkedDeque<>();
+    this.instantiator = instantiator;
     this.sizeLimit = sizeLimit;
   }
 
   public ObjectPool(Supplier<T> instantiator) {
-    this.instantiator = instantiator;
     this.pool = new ConcurrentLinkedDeque<>();
+    this.instantiator = instantiator;
     this.sizeLimit = MAX_VALUE;
   }
 
