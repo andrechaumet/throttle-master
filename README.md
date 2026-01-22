@@ -141,8 +141,7 @@ MemoryLock<Order> failFastLock = aMemoryLock()
 
 ### Fair locking
 
-TODO AGREGAR
-
+Fair locking enforces first-come, first-served, ensuring that threads acquire locks in a FIFO order.
 ```java
 MemoryLock<Order> fairLock = aMemoryLock()
     .withFairness(true)
