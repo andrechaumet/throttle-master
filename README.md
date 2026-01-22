@@ -89,23 +89,79 @@ try {
 In case any of these timeout constraints are exceeded, a **TimedOutException** from the *
 *java.util.concurrent.TimeoutException** package will be thrown.
 
+---
+
 ### MemoryLock
 
-MemoryLock is a lightweight utility for applying in-memory mutual exclusion over key-identified resources.
-Automatic cleanup of inactive locks, works with any type that implements `Lockable`
+MemoryLock is a lightweight utility for applying **mutual exclusion** over
+**key-identified resources**.  
+It ensures that only one thread can operate on the same logical resource at a time,
+while allowing maximum concurrency across different keys.
+
+Inactive locks are **automatically cleaned up**, preventing unbounded memory growth.
+
+### Basic usage
 
 ```java
-MemoryLock<Order> orderLock = new MemoryLock<>();
+MemoryLock<Order> orderLock = aMemoryLock().build();
 
-Order order = new Order(123); // Order.class must implement Lockable interface
+Order order = new Order(123); // Order must implement Lockable
 
-// ensures that only one order with the same ID is executed at a time,
-// while allowing multiple orders with different IDs to be processed concurrently
+// Ensures that only one order with the same ID is processed at a time,
+// while allowing different orders to be processed concurrently
 orderLock.locked(order, () -> {
-  processOrder(order); // executed with mutual exclusion for this order ID
+    // your mutex logic here
+    processOrder(order);
 });
 ```
 
-### Token Bucket Mechanism
+### Global concurrency limiting
 
-Utilizes a token-based algorithm for fair and efficient request management.
+MemoryLock can limit the total number of concurrent executions across all keys,
+providing protection against overload.
+
+```java
+MemoryLock<Order> orderLock = aMemoryLock()
+    .withMaxCapacity(100)
+    .build();
+```
+
+### Overload behavior
+
+By default, lock acquisition waits until capacity becomes available.
+
+You can enable fail-fast behavior to immediately reject new attempts when capacity
+is exhausted:
+
+```java
+MemoryLock<Order> failFastLock = aMemoryLock()
+    .withWaitOnOverload(false)
+    .build();
+```
+
+### Fair locking
+
+TODO AGREGAR
+
+```java
+MemoryLock<Order> fairLock = aMemoryLock()
+    .withFairness(true)
+    .build();
+```
+
+### Primitive and value-based locking
+
+MemoryLock supports locking on primitive or value-based keys without requiring
+objects implementing the **Lockable** interface, using the **Lockables** utility.
+
+```java
+MemoryLock<Lockable> lock = aMemoryLock().build();
+
+lock.locked(Lockables.from(123), () -> {
+    processById(123);
+});
+
+lock.locked(Lockables.from("order-123"), () -> {
+    processByOrderKey("order-123");
+});
+```
