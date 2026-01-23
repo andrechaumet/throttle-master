@@ -33,15 +33,19 @@ public final class MemoryLock<T extends Lockable> {
    * Executes the given {@code Runnable} while holding the lock associated with the provided {@code lockable} key, using
    * the specified fairness policy.
    *
+   * @return {@code true} if the lock was successfully acquired and the {@code Runnable} was executed; {@code false} if
+   * the lock could not be acquired and the {@code Runnable} was not executed
+   * @throws InterruptedException if the current thread is interrupted while attempting to acquire the lock
+   *
    */
-  public void locked(T lockable, Runnable runnable) throws InterruptedException {
+  public boolean locked(T lockable, Runnable runnable) throws InterruptedException {
     var key = lockable.getKey();
-    if (tryAcquireLock(key)) {
-      try {
-        runnable.run();
-      } finally {
-        releaseLock(key);
-      }
+    if (!tryAcquireLock(key)) return false;
+    try {
+      runnable.run();
+      return true;
+    } finally {
+      releaseLock(key);
     }
   }
 
