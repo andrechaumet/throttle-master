@@ -1,5 +1,7 @@
 package com.andre.lock;
 
+import static com.andre.pool.ObjectPool.anObjectPool;
+
 import com.andre.pool.ObjectPool;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
@@ -10,8 +12,9 @@ import java.util.concurrent.locks.ReentrantLock;
  * <p>
  * Provides locking and unlocking for resources that implement {@code Lockable}, ensuring mutual exclusion when
  * performing operations on shared entities.
+ * <p>
+ * @param <T> the type of lockable resource
  *
-y * @param <T> the type of lockable resource
  * @author André Chaumet
  *
  */
@@ -23,7 +26,8 @@ public final class MemoryLock<T extends Lockable> {
   private final Semaphore capacity;
 
   private MemoryLock(int minCapacity, int maxCapacity, boolean waitOnOverload, boolean fair) {
-    this.locksPool = new ObjectPool<>(() -> new ReentrantLock(fair), maxCapacity);
+    ObjectPool.Builder<ReentrantLock> builder = anObjectPool();
+    this.locksPool = builder.withInstantiator(() -> new ReentrantLock(fair)).build();
     this.locks = new ConcurrentHashMap<>(minCapacity);
     this.capacity = new Semaphore(maxCapacity, fair);
     this.waitOnOverload = waitOnOverload;
