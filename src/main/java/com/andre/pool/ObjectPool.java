@@ -12,6 +12,7 @@ public class ObjectPool<T> {
   private final Deque<T> pool;
   private final int sizeLimit;
   private final boolean overflow;
+  //private final boolean recycle; // TODO?
 
   private ObjectPool(Supplier<T> instantiator, int sizeLimit, boolean overflow) {
     this.pool = new ConcurrentLinkedDeque<>();
@@ -28,7 +29,9 @@ public class ObjectPool<T> {
   }
 
   public void release(T entry) {
-    if (pool.size() < sizeLimit) pool.add(entry);
+    synchronized (pool) {
+      if (pool.size() < sizeLimit) pool.add(entry);
+    }
   }
 
   /**
