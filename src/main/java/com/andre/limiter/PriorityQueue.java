@@ -2,7 +2,9 @@ package com.andre.limiter;
 
 
 /**
- * thread-safe PriorityQueue for managing queue insertions and retrievals with multithreaded access.
+ * PriorityQueue for managing queue insertions and retrievals on priority-based operations.
+ *
+ * <p> Designed to be used in thread-safe contexts.
  *
  * @author André Chaumet
  * @date 2024-09-24
