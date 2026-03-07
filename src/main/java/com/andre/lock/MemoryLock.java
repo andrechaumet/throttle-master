@@ -23,13 +23,15 @@ public final class MemoryLock<T extends Lockable> {
   private final ConcurrentHashMap<Object, ReentrantLock> locks;
   private final ObjectPool<ReentrantLock> locksPool;
   private final boolean waitOnOverload;
-  private final Semaphore capacity;
+  private final Semaphore overallCapacity;
+  private final Semaphore keyCapacity;
 
-  private MemoryLock(int minCapacity, int maxCapacity, boolean waitOnOverload, boolean fair) {
+  private MemoryLock(int minCapacity, int maxCapacity, int byKeyCapacity, boolean waitOnOverload, boolean fair) {
     ObjectPool.Builder<ReentrantLock> builder = anObjectPool();
     this.locksPool = builder.withInstantiator(() -> new ReentrantLock(fair)).build();
     this.locks = new ConcurrentHashMap<>(minCapacity);
-    this.capacity = new Semaphore(maxCapacity, fair);
+    this.overallCapacity = new Semaphore(maxCapacity, fair);
+    this.keyCapacity = new Semaphore(byKeyCapacity, fair);
     this.waitOnOverload = waitOnOverload;
   }
 
@@ -54,13 +56,19 @@ public final class MemoryLock<T extends Lockable> {
   }
 
   private boolean tryAcquireLock(Object key) throws InterruptedException {
-    if (waitOnOverload) capacity.acquire();
-    else if (!capacity.tryAcquire()) return false;
+    if (waitOnOverload) {
+      keyCapacity.acquire();
+      overallCapacity.acquire();
+    }
+    else if (!overallCapacity.tryAcquire()) return false;
     ReentrantLock lock = locks.computeIfAbsent(
         key, k -> locksPool.request()
     );
     boolean acquired = lock.tryLock();
-    if (!acquired) capacity.release();
+    if (!acquired) {
+      keyCapacity.release();
+      overallCapacity.release();
+    }
     return acquired;
   }
 
@@ -68,7 +76,7 @@ public final class MemoryLock<T extends Lockable> {
     ReentrantLock lock = locks.get(key);
     if (lock != null) {
       lock.unlock();
-      capacity.release();
+      overallCapacity.release();
       recycleLock(lock);
     }
   }
@@ -98,6 +106,7 @@ public final class MemoryLock<T extends Lockable> {
 
     private int minCapacity = 64;
     private int maxCapacity = Integer.MAX_VALUE;
+    private int maxKeyCapacity = Integer.MAX_VALUE;
     private boolean waitOnOverload = true;
     private boolean fair = true;
 
@@ -120,13 +129,20 @@ public final class MemoryLock<T extends Lockable> {
     /**
      * Sets the maximum number of concurrent locks allowed.
      *
-     * <p>This value defines the maximum number of permits managed by the internal
-     * {@link Semaphore}, effectively limiting concurrent lock acquisition.
-     *
      * @param maxCapacity the maximum number of concurrent locks
      */
     public Builder<T> withMaxCapacity(int maxCapacity) {
       this.maxCapacity = maxCapacity;
+      return this;
+    }
+
+    /**
+     * Sets the maximum number of concurrent locks allowed by key.
+     *
+     * @param maxKeyCapacity the maximum number of concurrent locks per key
+     */
+    public Builder<T> withMaxCapacityByKey(int maxKeyCapacity) {
+      this.maxKeyCapacity = maxKeyCapacity;
       return this;
     }
 
@@ -162,7 +178,7 @@ public final class MemoryLock<T extends Lockable> {
      * @return a configured {@link MemoryLock} instance
      */
     public MemoryLock<T> build() {
-      return new MemoryLock<>(minCapacity, maxCapacity, waitOnOverload, fair);
+      return new MemoryLock<>(minCapacity, maxCapacity, maxKeyCapacity, waitOnOverload, fair);
     }
   }
 }
