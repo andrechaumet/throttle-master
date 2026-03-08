@@ -5,6 +5,7 @@ import static com.andre.pool.ObjectPool.anObjectPool;
 import com.andre.pool.ObjectPool;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantLock;
 
 /**
@@ -25,14 +26,16 @@ public final class MemoryLock<T extends Lockable> {
   private final boolean waitOnOverload;
   private final Semaphore overallCapacity;
   private final Semaphore keyCapacity;
+  private final long timeoutMillis;
 
-  private MemoryLock(int minCapacity, int maxCapacity, int byKeyCapacity, boolean waitOnOverload, boolean fair) {
+  private MemoryLock(int minCapacity, int maxCapacity, int byKeyCapacity, boolean waitOnOverload, boolean fair, long timeoutMillis) {
     ObjectPool.Builder<ReentrantLock> builder = anObjectPool();
     this.locksPool = builder.withInstantiator(() -> new ReentrantLock(fair)).build();
     this.locks = new ConcurrentHashMap<>(minCapacity);
     this.overallCapacity = new Semaphore(maxCapacity, fair);
     this.keyCapacity = new Semaphore(byKeyCapacity, fair);
     this.waitOnOverload = waitOnOverload;
+    this.timeoutMillis = timeoutMillis;
   }
 
   /**
@@ -64,7 +67,7 @@ public final class MemoryLock<T extends Lockable> {
     ReentrantLock lock = locks.computeIfAbsent(
         key, k -> locksPool.request()
     );
-    boolean acquired = lock.tryLock();
+    boolean acquired = lock.tryLock(timeoutMillis, TimeUnit.MILLISECONDS);
     if (!acquired) {
       keyCapacity.release();
       overallCapacity.release();
@@ -77,13 +80,13 @@ public final class MemoryLock<T extends Lockable> {
     if (lock != null) {
       lock.unlock();
       overallCapacity.release();
-      recycleLock(lock);
+      recycleLock(lock, key);
     }
   }
 
-  private void recycleLock(ReentrantLock lock) {
+  private void recycleLock(ReentrantLock lock, Object key) {
     if (!lock.isLocked() && !lock.hasQueuedThreads()) {
-      locksPool.release(locks.remove(lock));
+      locksPool.release(locks.remove(key));
     }
   }
 
@@ -104,11 +107,12 @@ public final class MemoryLock<T extends Lockable> {
    */
   public static final class Builder<T extends Lockable> {
 
+    private boolean fair = true;
     private int minCapacity = 64;
     private int maxCapacity = Integer.MAX_VALUE;
     private int maxKeyCapacity = Integer.MAX_VALUE;
+    private long timeoutMillis = Long.MAX_VALUE;
     private boolean waitOnOverload = true;
-    private boolean fair = true;
 
     private Builder() {
     }
@@ -172,13 +176,24 @@ public final class MemoryLock<T extends Lockable> {
       return this;
     }
 
+    public Builder<T> withTimeout(TimeUnit unit, long timeout) {
+      this.timeoutMillis = unit.toMillis(timeout);
+      return this;
+    }
+
     /**
      * Builds a new {@link MemoryLock} instance with the configured options.
      *
      * @return a configured {@link MemoryLock} instance
      */
     public MemoryLock<T> build() {
-      return new MemoryLock<>(minCapacity, maxCapacity, maxKeyCapacity, waitOnOverload, fair);
+      return new MemoryLock<>(
+          minCapacity,
+          maxCapacity,
+          maxKeyCapacity,
+          waitOnOverload,
+          fair,
+          timeoutMillis);
     }
   }
 }

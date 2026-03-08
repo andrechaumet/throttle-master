@@ -86,7 +86,7 @@ public class ObjectPool<T> {
      * Builds the {@link ObjectPool}.
      *
      * @return a configured {@link ObjectPool}
-     * @throws IllegalStateException if instantiator was not provided
+     * @throws IllegalStateException if an instantiator was not provided
      */
     public ObjectPool<T> build() {
       if (instantiator == null) {
