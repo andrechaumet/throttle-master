@@ -115,14 +115,16 @@ orderLock.locked(order, () -> {
 });
 ```
 
-### Global concurrency limiting
+### Global and per-key concurrency limiting
 
 MemoryLock can limit the total number of concurrent executions across all keys,
+as well as the number of concurrent executions allowed for the same key,
 providing protection against overload.
 
 ```java
 MemoryLock<Order> orderLock = aMemoryLock()
     .withMaxCapacity(100)
+    .withMaxCapacityByKey(10)
     .build();
 ```
 
@@ -147,6 +149,18 @@ MemoryLock<Order> fairLock = aMemoryLock()
     .withFairness(true)
     .build();
 ```
+
+### Lock acquisition timeout
+
+MemoryLock can time out while waiting to acquire a lock, allowing callers to avoid
+waiting indefinitely under contention. If not specified, it waits up to `Long.MAX_VALUE`.
+
+```java
+MemoryLockorderLock = aMemoryLock()
+    .withTimeout(SECONDS, 5)
+    .build();
+```
+
 
 ### Primitive and value-based locking
 
