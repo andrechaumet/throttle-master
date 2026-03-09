@@ -27,7 +27,7 @@ class RateLimiterTest {
 
   @Order(3)
   @ParameterizedTest
-  @CsvFileSource(resources = "/rateLimiterShouldHandleAverageInTime.csv")
+  @CsvFileSource(resources = "/limiter/rateLimiterShouldHandleAverageInTime.csv")
   void rateLimiterShouldHandleAverageInTime(int calls, int throughput) {
     // GIVEN: A RateLimiter with a limit of n transactions per second
     rateLimiter = RateLimiter.Builder.aRateLimiter().withRate(throughput).build();
@@ -48,7 +48,7 @@ class RateLimiterTest {
 
   @Order(1)
   @ParameterizedTest
-  @CsvFileSource(resources = "/rateLimiterShouldHandleMicroExecutionTimeValues.csv")
+  @CsvFileSource(resources = "/limiter/rateLimiterShouldHandleMicroExecutionTimeValues.csv")
   void rateLimiterShouldHandleMicroExecutionTimeValues(int calls, int throughput) {
     // GIVEN: A RateLimiter with a limit larger than transactions per second
     rateLimiter = RateLimiter.Builder.aRateLimiter().withRate(throughput).build();
@@ -67,7 +67,7 @@ class RateLimiterTest {
 
   @Order(2)
   @ParameterizedTest
-  @CsvFileSource(resources = "/rateLimiterShouldTimeOutWhenExceedingTimeConstraints.csv")
+  @CsvFileSource(resources = "/limiter/rateLimiterShouldTimeOutWhenExceedingTimeConstraints.csv")
   void rateLimiterShouldTimeOutWhenExceedingTimeConstraints(int throughput, long timeout, int calls) {
     // GIVEN: A RateLimiter with timeout smaller than the throughput
     rateLimiter = RateLimiter.Builder.aRateLimiter().withRate(throughput, SECONDS).withTimeout(timeout, SECONDS).build();
@@ -89,7 +89,7 @@ class RateLimiterTest {
 
   @Order(4)
   @ParameterizedTest
-  @CsvFileSource(resources = "/rateLimiterShouldPassWithoutReachingTimeout.csv")
+  @CsvFileSource(resources = "/limiter/rateLimiterShouldPassWithoutReachingTimeout.csv")
   void rateLimiterShouldPassWithoutReachingTimeout(int throughput, long timeout, int calls) {
     // GIVEN: An amount of calls able to avoid the timeout
     rateLimiter = RateLimiter.Builder.aRateLimiter().withRate(throughput).withTimeout(timeout).build();
@@ -109,7 +109,7 @@ class RateLimiterTest {
 
   @Order(5)
   @ParameterizedTest
-  @CsvFileSource(resources = "/rateLimiterShouldHandleMultiRateValues.csv")
+  @CsvFileSource(resources = "/limiter/rateLimiterShouldHandleMultiRateValues.csv")
   void  rateLimiterShouldHandleMultiRateValues(
       int rate1, TimeUnit unit1, int rate2, TimeUnit unit2, long timeout, int calls) {
     // GIVEN: A RateLimiter with multiple rates and a timeout
