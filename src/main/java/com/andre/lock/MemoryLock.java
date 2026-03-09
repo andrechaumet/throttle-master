@@ -80,6 +80,7 @@ public final class MemoryLock<T extends Lockable> {
     if (lock != null) {
       lock.unlock();
       overallCapacity.release();
+      keyCapacity.release(); // todo def
       recycleLock(lock, key);
     }
   }
