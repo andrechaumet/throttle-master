@@ -80,14 +80,18 @@ public final class RateLimiter {
    * @throws TimeoutException if the acquisition fails due to timeout.
    */
   public void acquire(int priority, long timeout) throws TimeoutException {
+    long initialTime = nanoTime();
     try {
       priorityQueue.register(priority);
-      long initialTime = nanoTime();
       do {
         if (tryAcquire(priority)) {
+          // adquiridos
+          // tiempo de espera de adquiridos
           return;
         }
       } while (!timedOut(initialTime, timeout));
+      // timeouteados
+      // tiempo de espera de timeouteados
       throw new TimeoutException();
     } finally {
       priorityQueue.remove(priority);
@@ -99,7 +103,7 @@ public final class RateLimiter {
     if (acquired(priority)) {
       return true;
     }
-    LockSupport.parkNanos(SECONDS.toNanos(1));
+    LockSupport.parkNanos(SECONDS.toNanos(1)); // improve park/unpark
     return false;
   }
 
