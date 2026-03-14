@@ -55,10 +55,6 @@ final class CycleTracker {
     return leftover;
   }
 
-  long lapsed() {
-    return lapsed;
-  }
-
   private boolean allAvailable() {
     for (int i = 0; i < throughput.length; i++) {
       if (throughput[i] == 0) continue;
