@@ -11,8 +11,10 @@ Restricts up to a specified number of simultaneous invocations.
 
 ```java
 public CreateUserResponse createUser(CreateRequest createUser) {
-  rateLimiter.acquire(); // waits here until it can acquire, or times out depending on the configuration
-  return userService.post(createUser);
+  if (rateLimiter.acquire()) {
+    return userService.post(createUser); // permit acquired, proceed normally
+  }
+  // rate limit timed out — handle accordingly (e.g. reject, retry, fallback)
 }
 ```
 
@@ -27,15 +29,14 @@ higher priority by increasing the int used to track priority
 
 ```java
 public CreateUserResponse createUser(CreateRequest createUser, boolean highPriority) {
-  if (highPriority) {
-    // in case of a bottleneck, will process before any request with a lower int
-    rateLimiter.acquire(2);
-  } else {
-    // this is the same as using 'rateLimiter.acquire(1)'
-    // will process only if no higher priority requests are pending
-    rateLimiter.acquire();
+  boolean acquired = highPriority
+      ? rateLimiter.acquire(2)  // in case of a bottleneck, will process before any request with a lower int
+      : rateLimiter.acquire();  // will process only if no higher priority requests are pending
+
+  if (acquired) {
+    return userService.post(createUser); // permit acquired, proceed normally
   }
-  return userService.post(createUser);
+  // rate limit timed out — handle accordingly (e.g. reject, retry, fallback)
 }
 ```
 
@@ -78,16 +79,46 @@ public RateLimiter rateLimiter() {
 - `timeout` (long): The maximum time to wait for the resource in milliseconds.
 
 ```java
-try {
-  rateLimiter.acquire(5, 10000); // priority level 5, waits for up to 10 seconds
-  // perform operations after successful acquisition
-} catch (TimeoutException e) {
-  // handles timeout if acquisition fails due to race conditions (e.g., RateLimiter bottlenecked by higher-priority threads)
+if (rateLimiter.acquire(5, 10000)) { // priority level 5, waits for up to 10 seconds
+  // permit acquired, proceed normally
+} else {
+  // timed out — could not acquire within the given window (e.g. bottlenecked by higher-priority threads)
+  // handle accordingly (e.g. reject, retry, fallback)
 }
 ```
 
-In case any of these timeout constraints are exceeded, a **TimedOutException** from the *
-*java.util.concurrent.TimeoutException** package will be thrown.
+---
+
+### TokenBucket
+
+A lower-level primitive where the available token count decreases with each acquisition and
+increases with each supply, allowing the rate of access to fluctuate dynamically.
+
+#### Supplying a token
+
+```java
+tokenBucket.supply(); // increases available tokens, unblocking any pending acquisitions
+```
+
+#### Basic acquisition
+
+```java
+if (tokenBucket.acquire()) {
+  // token acquired — proceed normally
+} else {
+  // timed out — no token became available in time, handle accordingly
+}
+```
+
+#### Acquisition with explicit timeout
+
+```java
+if (tokenBucket.acquire(500, MILLISECONDS)) {
+  // token acquired — proceed normally
+} else {
+  // no token became available within 500ms, handle accordingly
+}
+```
 
 ---
 
