@@ -8,7 +8,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.LockSupport;
 
 /**
@@ -45,31 +44,30 @@ public final class RateLimiter {
 
   /**
    * Acquires a resource with the lowest priority and using RateLimiter's instance default timeout.
-   *
-   * @throws TimeoutException if the acquisition fails due to timeout.
+   * @return {@code true} if the resource was successfully acquired within the timeout,
    */
-  public void acquire() throws TimeoutException {
-    acquire(LOWEST_PRIORITY, this.timeout);
+  public boolean acquire() {
+    return acquire(LOWEST_PRIORITY, this.timeout);
   }
 
   /**
    * Acquires with the specified priority and using RateLimiter's instance default timeout.
    *
    * @param timeout the priority level for the acquisition request.
-   * @throws TimeoutException if the acquisition fails due to timeout.
+   * @return {@code true} if the resource was successfully acquired within the timeout,
    */
-  public void acquire(long timeout) throws TimeoutException {
-    acquire(LOWEST_PRIORITY, timeout);
+  public boolean acquire(long timeout) {
+    return acquire(LOWEST_PRIORITY, timeout);
   }
 
   /**
    * Acquires a resource with the specified priority and using RateLimiter's instance default timeout.
    *
    * @param priority the priority level for the acquisition request.
-   * @throws TimeoutException if the acquisition fails due to timeout.
+   * @return {@code true} if the resource was successfully acquired within the timeout,
    */
-  public void acquire(int priority) throws TimeoutException {
-    acquire(priority, this.timeout);
+  public boolean acquire(int priority) {
+    return acquire(priority, this.timeout);
   }
 
   /**
@@ -77,16 +75,16 @@ public final class RateLimiter {
    *
    * @param priority the priority level for the acquisition request.
    * @param timeout the custom timeout given for the request in milliseconds.
-   * @throws TimeoutException if the acquisition fails due to timeout.
+   * @return {@code true} if the resource was successfully acquired within the timeout,
    */
-  public void acquire(int priority, long timeout) throws TimeoutException {
+  public boolean acquire(int priority, long timeout) {
     long initialTime = nanoTime();
     try {
       priorityQueue.register(priority);
       do {
-        if (tryAcquire(priority)) return;
+        if (tryAcquire(priority)) return true;
       } while (!timedOut(initialTime, timeout));
-      throw new TimeoutException();
+      return false;
     } finally {
       priorityQueue.remove(priority);
     }
@@ -94,9 +92,7 @@ public final class RateLimiter {
 
   private boolean tryAcquire(int priority) {
     cycleTracker.reset(nanoTime());
-    if (acquired(priority)) {
-      return true;
-    }
+    if (acquired(priority)) return true;
     LockSupport.parkNanos(SECONDS.toNanos(1)); // improve park/unpark
     return false;
   }

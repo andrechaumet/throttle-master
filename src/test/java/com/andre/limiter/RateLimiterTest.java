@@ -2,16 +2,13 @@ package com.andre.limiter;
 
 import static java.lang.Math.ceil;
 import static java.lang.Math.max;
-import static java.lang.Thread.currentThread;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 import org.junit.jupiter.api.MethodOrderer;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
@@ -35,11 +32,8 @@ class RateLimiterTest {
     double margin = expected * allowedMargin;
     AtomicInteger timeouts = new AtomicInteger();
     // WHEN: Invoking n concurrent calls at the same instant
-    Runnable execution = invokeRateLimiter(calls,
-            () -> rateLimiter.acquire(),
-            e -> {
-      timeouts.incrementAndGet();
-      currentThread().interrupt();
+    Runnable execution = invokeRateLimiter(calls, () -> {
+      if (!rateLimiter.acquire()) timeouts.incrementAndGet();
     });
     double actual = NANOSECONDS.toSeconds(measureTime(execution));
     // THEN: Agreed rate limit value should be respected
@@ -54,15 +48,13 @@ class RateLimiterTest {
     rateLimiter = RateLimiter.Builder.aRateLimiter().withRate(throughput).build();
     AtomicInteger timeouts = new AtomicInteger();
     // WHEN: Invoking n concurrent calls at the same instant
-    Runnable execution = invokeRateLimiter(calls,
-            () -> rateLimiter.acquire(),
-            e -> {
-              currentThread().interrupt();
-              timeouts.incrementAndGet();
-            });
+    Runnable execution = invokeRateLimiter(calls, () -> {
+      if (!rateLimiter.acquire()) timeouts.incrementAndGet();
+    });
     double actual = NANOSECONDS.toSeconds(measureTime(execution));
     // THEN: As close to 1 as possible is expected
     assertEquals(0, actual, allowedMargin, "Execution time is not within the allowed margin.");
+    assertEquals(0, timeouts.get(), "The operation experienced unexpected timeouts.");
   }
 
   @Order(2)
@@ -72,13 +64,9 @@ class RateLimiterTest {
     // GIVEN: A RateLimiter with timeout smaller than the throughput
     rateLimiter = RateLimiter.Builder.aRateLimiter().withRate(throughput, SECONDS).withTimeout(timeout, SECONDS).build();
     AtomicInteger timeouts = new AtomicInteger();
-    Runnable execution =
-            invokeRateLimiter(calls,
-                    () -> rateLimiter.acquire(),
-                    e -> {
-                      currentThread().interrupt();
-                      timeouts.incrementAndGet();
-                    });
+    Runnable execution = invokeRateLimiter(calls, () -> {
+      if (!rateLimiter.acquire()) timeouts.incrementAndGet();
+    });
     // WHEN: Invoking n concurrent calls
     execution.run();
     // THEN: Expected timed out invocations should throw
@@ -94,12 +82,9 @@ class RateLimiterTest {
     // GIVEN: An amount of calls able to avoid the timeout
     rateLimiter = RateLimiter.Builder.aRateLimiter().withRate(throughput).withTimeout(timeout).build();
     AtomicInteger timeouts = new AtomicInteger();
-    Runnable execution = invokeRateLimiter(calls,
-            () -> rateLimiter.acquire(),
-            e -> {
-              currentThread().interrupt();
-              timeouts.incrementAndGet();
-            });
+    Runnable execution = invokeRateLimiter(calls, () -> {
+      if (!rateLimiter.acquire()) timeouts.incrementAndGet();
+    });
     // WHEN: Invoking n concurrent calls
     execution.run();
     // THEN: No timeouts should happen
@@ -119,12 +104,9 @@ class RateLimiterTest {
             .withTimeout(timeout, SECONDS)
             .build();
     AtomicInteger timeouts = new AtomicInteger();
-    Runnable execution = invokeRateLimiter(calls,
-            () -> rateLimiter.acquire(),
-            e -> {
-              currentThread().interrupt();
-              timeouts.incrementAndGet();
-            });
+    Runnable execution = invokeRateLimiter(calls, () -> {
+      if (!rateLimiter.acquire()) timeouts.incrementAndGet();
+    });
     // WHEN: Invoking n concurrent calls
     execution.run();
     // THEN: Timeouts should happen due to lower rate allowed
@@ -154,31 +136,24 @@ class RateLimiterTest {
             "Expected exception for negative timeout value");
   }
 
-  private Runnable invokeRateLimiter(int calls, Acquirer acquirer, Consumer<Exception> handler) {
+  private Runnable invokeRateLimiter(int calls, Acquirer acquirer) {
     Thread[] threads = new Thread[calls];
     return () -> {
-      createAll(threads, acquirer, handler);
+      createAll(threads, acquirer);
       startAll(threads);
       joinAll(threads);
     };
   }
 
-  private void createAll(Thread[] threads, Acquirer runnable, Consumer<Exception> handler) {
+  private void createAll(Thread[] threads, Acquirer runnable) {
     for (int i = 0; i < threads.length; i++) {
-      threads[i] = acquireSafely(runnable, handler);
+      threads[i] = acquireSafely(runnable);
     }
   }
 
 
-  private Thread acquireSafely(Acquirer acquirer, Consumer<Exception> handler) {
-    return new Thread(
-        () -> {
-          try {
-            acquirer.acquire();
-          } catch (TimeoutException e) {
-            handler.accept(e);
-          }
-        });
+  private Thread acquireSafely(Acquirer acquirer) {
+    return new Thread(acquirer::acquire);
   }
 
   private void startAll(Thread[] threads) {
@@ -205,7 +180,7 @@ class RateLimiterTest {
   }
 
   @FunctionalInterface
-  private interface Acquirer {
-    void acquire() throws TimeoutException;
+  private interface Acquirer { // currently less useful than before, pending to analyze whether to keep
+    void acquire();
   }
 }
