@@ -63,7 +63,7 @@ class MemoryLockTest {
     // GIVEN: A MemoryLock and two concurrent calls for different keys
     MemoryLock<Lockable> memoryLock = MemoryLock.aMemoryLock().build();
 
-    CountDownLatch started = new CountDownLatch(2);
+    CountDownLatch started = new CountDownLatch(3);
     CountDownLatch release = new CountDownLatch(1);
     AtomicBoolean overlapped = new AtomicBoolean(false);
     AtomicInteger running = new AtomicInteger();
@@ -88,13 +88,25 @@ class MemoryLockTest {
       running.decrementAndGet();
     });
 
+    Thread third = lockInThread(memoryLock, Lockables.from(123), () -> {
+      started.countDown();
+      int current = running.incrementAndGet();
+      if (current > 1) {
+        overlapped.set(true);
+      }
+      awaitSilently(release);
+      running.decrementAndGet();
+    });
+
     // WHEN: Starting both calls concurrently
     first.start();
     second.start();
+    third.start();
     started.await();
     release.countDown();
     first.join();
     second.join();
+    third.join();
 
     // THEN: Different keys should be able to execute in parallel
     assertTrue(overlapped.get(), "Different-key executions should be allowed to overlap.");

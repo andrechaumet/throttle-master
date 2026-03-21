@@ -89,9 +89,7 @@ public class ObjectPool<T> {
      * @throws IllegalStateException if an instantiator was not provided
      */
     public ObjectPool<T> build() {
-      if (instantiator == null) {
-        throw new IllegalStateException("Instantiator must be provided");
-      }
+      if (instantiator == null) throw new IllegalStateException("Instantiator must be provided");
       return new ObjectPool<>(instantiator, sizeLimit, overflow);
     }
   }

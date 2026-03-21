@@ -13,7 +13,7 @@ import java.util.concurrent.locks.ReentrantLock;
  */
 final class PriorityQueue {
 
-  private static final int DEFAULT_SHARDS = 16;
+  private static final int DEFAULT_SHARDS = 2;
 
   private final Shard[] shards;
   private final int mask;
