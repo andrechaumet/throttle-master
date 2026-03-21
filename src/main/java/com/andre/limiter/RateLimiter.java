@@ -84,14 +84,8 @@ public final class RateLimiter {
     try {
       priorityQueue.register(priority);
       do {
-        if (tryAcquire(priority)) {
-          // adquiridos
-          // tiempo de espera de adquiridos
-          return;
-        }
+        if (tryAcquire(priority)) return;
       } while (!timedOut(initialTime, timeout));
-      // timeouteados
-      // tiempo de espera de timeouteados
       throw new TimeoutException();
     } finally {
       priorityQueue.remove(priority);
