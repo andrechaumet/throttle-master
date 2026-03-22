@@ -12,25 +12,28 @@ public class ObjectPool<T> {
   private final Deque<T> pool;
   private final int sizeLimit;
   private final boolean overflow;
-  //private final boolean recycle; // TODO?
+  private final boolean recycle;
 
-  private ObjectPool(Supplier<T> instantiator, int sizeLimit, boolean overflow) {
+  private ObjectPool(Supplier<T> instantiator, int sizeLimit, boolean recycle, boolean overflow) {
     this.pool = new ConcurrentLinkedDeque<>();
     this.instantiator = instantiator;
     this.sizeLimit = sizeLimit;
     this.overflow = overflow;
+    this.recycle = recycle;
   }
 
   public T request() throws PoolExhaustedException {
-    T entry = pool.poll();
-    if (entry != null) return entry;
-    else if (pool.size() < sizeLimit || overflow) return instantiator.get();
-    else throw new PoolExhaustedException("ObjectPool exhausted: sizeLimit=" + sizeLimit);
+    synchronized (pool) {
+      T entry = pool.poll();
+      if (entry != null) return entry;
+      else if (pool.size() < sizeLimit || overflow) return instantiator.get();
+      else throw new PoolExhaustedException("ObjectPool exhausted: sizeLimit=" + sizeLimit);
+    }
   }
 
   public void release(T entry) {
     synchronized (pool) {
-      if (pool.size() < sizeLimit) pool.add(entry);
+      if (pool.size() < sizeLimit && recycle) pool.add(entry);
     }
   }
 
@@ -53,6 +56,7 @@ public class ObjectPool<T> {
 
     private Supplier<T> instantiator;
     private int sizeLimit = MAX_VALUE;
+    private boolean recycle = true;
     private boolean overflow = true;
 
     /**
@@ -77,8 +81,26 @@ public class ObjectPool<T> {
       return this;
     }
 
+    /**
+     * Enables or disables creating new instances via the configured {@link Supplier}
+     * when the pool limit is reached, instead of throwing a {@link PoolExhaustedException}.
+     *
+     * @param overflow whether to allow instances beyond the size limit
+     * @return this builder
+     */
     public Builder<T> withOverflow(boolean overflow) {
       this.overflow = overflow;
+      return this;
+    }
+
+    /**
+     * Enables or disables reusing released objects.
+     *
+     * @param recycle whether to store released objects for reuse
+     * @return this builder
+     */
+    public Builder<T> withRecycle(boolean recycle) {
+      this.recycle = recycle;
       return this;
     }
 
@@ -90,7 +112,7 @@ public class ObjectPool<T> {
      */
     public ObjectPool<T> build() {
       if (instantiator == null) throw new IllegalStateException("Instantiator must be provided");
-      return new ObjectPool<>(instantiator, sizeLimit, overflow);
+      return new ObjectPool<>(instantiator, sizeLimit, overflow, recycle);
     }
   }
 }
