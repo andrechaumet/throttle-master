@@ -53,7 +53,7 @@ long-term usage quotas.
 
 #### withTimeout(timeout, timeUnit):
 
-- `timeout` (int): The maximum time to wait for the resource.
+- `timeout` (long): The maximum time to wait for the resource.
 - `timeUnit` (TimeUnit): The unit of time for the timeout (e.g., seconds, milliseconds).
 
 
@@ -63,7 +63,7 @@ long-term usage quotas.
 public RateLimiter rateLimiter() {
   // limits up to 5 requests per second and 60 requests per minute. 
   // timeouts a request after 29 seconds of waiting
-  return RateLimiter.RateLimiterBuilder
+  return aRateLimiter()
       .withRate(5, SECONDS)
       .withRate(60, MINUTES)
       .withTimeout(29, SECONDS)
@@ -187,7 +187,7 @@ MemoryLock can time out while waiting to acquire a lock, allowing callers to avo
 waiting indefinitely under contention. If not specified, it waits up to `Long.MAX_VALUE`.
 
 ```java
-MemoryLockorderLock = aMemoryLock()
+MemoryLock<Order> orderLock = aMemoryLock()
     .withTimeout(SECONDS, 5)
     .build();
 ```
