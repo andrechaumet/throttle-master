@@ -76,10 +76,11 @@ public RateLimiter rateLimiter() {
 #### Parameters:
 
 - `priority` (int): The priority level for the acquisition. Higher values indicate higher priority.
-- `timeout` (long): The maximum time to wait for the resource in milliseconds.
+- `timeout` (long): The maximum time to wait for the resource.
+- `unit` (TimeUnit): The unit of time for the timeout (e.g., `SECONDS`, `MILLISECONDS`).
 
 ```java
-if (rateLimiter.acquire(5, 10000)) { // priority level 5, waits for up to 10 seconds
+if (rateLimiter.acquire(5, 10, SECONDS)) { // priority level 5, waits for up to 10 seconds
   // permit acquired, proceed normally
 } else {
   // timed out — could not acquire within the given window (e.g. bottlenecked by higher-priority threads)

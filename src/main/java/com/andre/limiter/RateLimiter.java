@@ -47,17 +47,18 @@ public final class RateLimiter {
    * @return {@code true} if the resource was successfully acquired within the timeout,
    */
   public boolean acquire() {
-    return acquire(LOWEST_PRIORITY, this.timeout);
+    return acquire(LOWEST_PRIORITY, this.timeout, TimeUnit.NANOSECONDS);
   }
 
   /**
-   * Acquires with the specified priority and using RateLimiter's instance default timeout.
+   * Acquires with the lowest priority and a custom timeout.
    *
-   * @param timeout the priority level for the acquisition request.
+   * @param timeout the maximum time to wait for the resource.
+   * @param unit    the time unit of the timeout.
    * @return {@code true} if the resource was successfully acquired within the timeout,
    */
-  public boolean acquire(long timeout) {
-    return acquire(LOWEST_PRIORITY, timeout);
+  public boolean acquire(long timeout, TimeUnit unit) {
+    return acquire(LOWEST_PRIORITY, timeout, unit);
   }
 
   /**
@@ -67,29 +68,30 @@ public final class RateLimiter {
    * @return {@code true} if the resource was successfully acquired within the timeout,
    */
   public boolean acquire(int priority) {
-    return acquire(priority, this.timeout);
+    return acquire(priority, this.timeout, TimeUnit.NANOSECONDS);
   }
 
   /**
-   * Acquires a resource with the specified priority and custom timeout.
+   * Acquires a resource with the specified priority and a custom timeout.
    *
    * @param priority the priority level for the acquisition request.
-   * @param timeout the custom timeout given for the request in milliseconds.
+   * @param timeout  the maximum time to wait for the resource.
+   * @param unit     the time unit of the timeout.
    * @return {@code true} if the resource was successfully acquired within the timeout,
    */
-  public boolean acquire(int priority, long timeout) {
+  public boolean acquire(int priority, long timeout, TimeUnit unit) {
     long initialTime = nanoTime();
+    long timeoutInNanos = unit.toNanos(timeout);
     try {
       priorityQueue.register(priority);
       do {
         if (tryAcquire(priority)) return true;
-      } while (!timedOut(initialTime, timeout));
+      } while (!timedOut(initialTime, timeoutInNanos));
       return false;
     } finally {
       priorityQueue.remove(priority);
     }
   }
-
   private boolean tryAcquire(int priority) {
     cycleTracker.reset(nanoTime());
     if (acquired(priority)) return true;
